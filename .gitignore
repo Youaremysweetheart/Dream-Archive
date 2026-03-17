@@ -1,28 +1,36 @@
-﻿# Frontend dependencies and build outputs
-frontend/node_modules/
-frontend/dist/
-frontend/.env*.local
-
-# Backend build outputs
-backend/target/
+﻿# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
 
 # Logs
 logs/
-backend/logs/
+**/logs/
 *.log
 
-# Uploaded files
-uploads/
+# Java / Maven
+**/target/
 
-# IDE/editor files
-.idea/
-*.iml
-.vscode/
+# Node
+**/node_modules/
+**/dist/
+**/.env*.local
 
-# OS files
-.DS_Store
-Thumbs.db
+# Python
+**/__pycache__/
+**/*.pyc
+**/.venv/
+**/venv/
 
-# Environment config with sensitive info
-backend/src/main/resources/application-prod.yml
-backend/src/main/resources/application-dev.yml
+# Uploads / runtime data
+**/uploads/
+
+# Env files
+.env
+.env.*
+
+# Sensitive Spring profiles
+**/application-prod.yml
+**/application-dev.yml
