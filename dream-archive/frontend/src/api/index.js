@@ -33,10 +33,8 @@ export const dreamApi = {
   getPublicDreams(params) {
     return request.get('/dream/public', { params })
   },
-  getDreamById(id, userId) {
-    return request.get(`/dream/${id}`, {
-      params: { userId: userId || undefined }
-    })
+  getDreamById(id) {
+    return request.get(`/dream/${id}`)
   },
   createDream(data) {
     return request.post('/dream/create', data)
@@ -51,14 +49,14 @@ export const dreamApi = {
   updateDream(id, data) {
     return request.put(`/dream/${id}`, data)
   },
-  deleteDream(id, userId) {
-    return request.delete(`/dream/${id}`, { params: { userId } })
+  deleteDream(id) {
+    return request.delete(`/dream/${id}`)
   },
   getUserDreams(userId, params = {}) {
     return request.get(`/dream/user/${userId}`, { params })
   },
-  toggleLike(dreamId, userId) {
-    return request.post(`/dream/${dreamId}/like`, null, { params: { userId } })
+  toggleLike(dreamId) {
+    return request.post(`/dream/${dreamId}/like`)
   },
   analyzeDream(dreamId) {
     return request.post(`/dream/${dreamId}/analyze`)
@@ -93,30 +91,42 @@ export const commentApi = {
 }
 
 export const adminApi = {
-  getStats(adminId) {
-    return request.get('/admin/stats', { params: { adminId } })
+  getStats() {
+    return request.get('/admin/stats')
   },
-  getUsers(adminId, params = {}) {
-    return request.get('/admin/users', { params: { adminId, ...params } })
+  getUsers(params = {}) {
+    return request.get('/admin/users', { params })
   },
-  getDreams(adminId, params = {}) {
-    return request.get('/admin/dreams', { params: { adminId, ...params } })
+  getDreams(params = {}) {
+    return request.get('/admin/dreams', { params })
   },
-  deleteDream(id, adminId) {
-    return request.delete(`/admin/dream/${id}`, { params: { adminId } })
+  deleteDream(id) {
+    return request.delete(`/admin/dream/${id}`)
   },
-  deleteUser(id, adminId) {
-    return request.delete(`/admin/user/${id}`, { params: { adminId } })
+  deleteUser(id) {
+    return request.delete(`/admin/user/${id}`)
   },
-  updateUserRole(id, role, adminId) {
-    return request.put(`/admin/user/${id}/role`, { role }, { params: { adminId } })
+  updateUserRole(id, role) {
+    return request.put(`/admin/user/${id}/role`, { role })
   },
-  updateUserStatus(id, status, adminId) {
-    return request.put(`/admin/user/${id}/status`, { status }, { params: { adminId } })
+  updateUserStatus(id, status) {
+    return request.put(`/admin/user/${id}/status`, { status })
   },
-  batchDeleteDreams(ids, adminId) {
-    return request.post('/admin/dreams/batch-delete', { ids }, { params: { adminId } })
+  batchDeleteDreams(ids) {
+    return request.post('/admin/dreams/batch-delete', { ids })
   }
 }
 
-export default { userApi, dreamApi, categoryApi, commentApi, adminApi }
+export const dreamRoomApi = {
+  enterRoom(data = {}) {
+    return request.post('/dream-room/enter', data)
+  },
+  sendMessage(data) {
+    return request.post('/dream-room/send', data)
+  },
+  getMessages(params) {
+    return request.get('/dream-room/messages', { params })
+  }
+}
+
+export default { userApi, dreamApi, categoryApi, commentApi, dreamRoomApi, adminApi }

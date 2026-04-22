@@ -395,7 +395,6 @@ const handleAvatarSelected = async (uploadFile) => {
   try {
     const formData = new FormData()
     formData.append('file', uploadFile.raw)
-    formData.append('userId', String(userStore.userId))
 
     const res = await userApi.uploadAvatar(formData)
     const avatarUrl = normalizeAvatar(res.data)
@@ -431,7 +430,6 @@ const handleSaveProfile = async () => {
     }
 
     const payload = {
-      userId: Number(userStore.userId),
       username: editForm.username.trim(),
       email: editForm.email,
       avatar: editForm.avatar?.replace('/api/uploads/', '/uploads/') || editForm.avatar,
@@ -747,14 +745,65 @@ onMounted(initPage)
 
 :deep(.el-dialog) {
   background: linear-gradient(160deg, rgba(20, 27, 40, 0.96), rgba(15, 22, 34, 0.96));
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 18px;
+  box-shadow: 0 20px 45px rgba(2, 8, 20, 0.5);
+  overflow: hidden;
 }
 
 :deep(.el-dialog__title) {
   color: #eef3ff;
 }
 
+:deep(.el-dialog__header) {
+  padding: 18px 22px 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+:deep(.el-dialog__body) {
+  padding: 20px 22px 16px;
+}
+
+:deep(.el-dialog__footer) {
+  padding: 12px 22px 18px;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
 :deep(.el-form-item__label) {
   color: #c8d6ee;
+}
+
+:deep(.el-form-item) {
+  margin-bottom: 18px;
+}
+
+:deep(.el-divider__text) {
+  border-radius: 999px;
+  padding: 4px 12px;
+  background: rgba(19, 28, 44, 0.9);
+  color: #d9e7fb;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+:deep(.el-input__wrapper) {
+  border-radius: 12px !important;
+  background: rgba(8, 14, 25, 0.86) !important;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.22) !important;
+}
+
+:deep(.el-input__wrapper.is-focus) {
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.55) !important;
+}
+
+:deep(.el-input__inner) {
+  color: #edf3ff !important;
+}
+
+:deep(.el-input__inner::placeholder) {
+  color: #8fa4c5 !important;
+}
+
+:deep(.el-dialog .el-button) {
+  border-radius: 10px;
 }
 </style>

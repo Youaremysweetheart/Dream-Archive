@@ -113,7 +113,7 @@ const formatTime = (time) => {
 .dream-card {
   background: linear-gradient(160deg, rgba(16, 22, 36, 0.95), rgba(10, 14, 24, 0.95));
   border-radius: 15px;
-  padding: 20px;
+  padding: 22px;
   cursor: pointer;
   transition: all 0.3s;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
@@ -130,7 +130,7 @@ const formatTime = (time) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  margin-bottom: 14px;
 }
 
 .user-info {
@@ -140,8 +140,9 @@ const formatTime = (time) => {
 }
 
 .username {
-  font-weight: 500;
-  color: #eaf1ff;
+  font-size: 15px;
+  font-weight: 600;
+  color: #f0f6ff;
 }
 
 .card-category-tag {
@@ -149,20 +150,25 @@ const formatTime = (time) => {
   border: 1px solid #60a5fa !important;
   color: #eff6ff !important;
   font-weight: 600;
+  font-size: 12px;
 }
 
 .dream-title {
-  font-size: 18px;
-  font-weight: bold;
-  margin-bottom: 10px;
-  color: #f5f9ff;
+  font-size: 22px;
+  line-height: 1.35;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: #f7fbff;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  min-height: 58px;
 }
 
 .dream-image-wrap {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -176,19 +182,25 @@ const formatTime = (time) => {
 }
 
 .dream-content {
-  color: #b7c3d9;
-  line-height: 1.6;
-  margin-bottom: 15px;
-  height: 60px;
+  color: #d5e1f3;
+  font-size: 15px;
+  line-height: 1.8;
+  margin-bottom: 16px;
   overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  min-height: 82px;
+  word-break: break-word;
 }
 
 .dream-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 15px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .stats {
@@ -200,12 +212,13 @@ const formatTime = (time) => {
   display: flex;
   align-items: center;
   gap: 5px;
-  color: #95a3bc;
-  font-size: 14px;
+  color: #b8c8e3;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .dream-time {
-  color: #91a0b9;
-  font-size: 12px;
+  color: #b2c1da;
+  font-size: 13px;
 }
 </style>

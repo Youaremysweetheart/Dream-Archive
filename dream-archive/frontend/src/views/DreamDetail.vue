@@ -45,6 +45,9 @@
           <div class="analysis-title">梦境分析</div>
           <div class="analysis-actions">
             <div v-if="analysisUpdatedAt" class="analysis-time">更新于 {{ formatTime(analysisUpdatedAt) }}</div>
+            <el-button v-if="isAuthor && hasAnalysis" size="small" type="primary" @click="goDreamRoom">
+              进入辅导室
+            </el-button>
             <el-button size="small" :loading="analysisLoading" @click="handleAnalyze">重新分析</el-button>
           </div>
         </div>
@@ -241,7 +244,7 @@ const toDisplayUrl = (url) => {
 
 const loadDream = async () => {
   try {
-    const res = await dreamApi.getDreamById(route.params.id, userStore.userId)
+    const res = await dreamApi.getDreamById(route.params.id)
     const d = res.data || {}
     d.userAvatar = toDisplayUrl(d.userAvatar)
     d.isLiked = d.isLiked === true
@@ -276,7 +279,7 @@ const handleLike = async () => {
   }
 
   try {
-    const res = await dreamApi.toggleLike(route.params.id, userStore.userId)
+    const res = await dreamApi.toggleLike(route.params.id)
     dream.value.isLiked = res.data
     dream.value.likeCount += res.data ? 1 : -1
     ElMessage.success(res.data ? '点赞成功' : '取消点赞')
@@ -289,14 +292,23 @@ const handleAnalyze = async () => {
   if (!dream.value?.id) return
   analysisLoading.value = true
   try {
-    await dreamApi.analyzeDream(dream.value.id)
+    const res = await dreamApi.analyzeDream(dream.value.id)
     await loadDream()
-    ElMessage.success('分析完成')
+    const roomId = res.data?.dream_room_id
+    if (roomId) {
+      ElMessage.success('分析完成，已生成辅导室入口')
+    } else {
+      ElMessage.success('分析完成')
+    }
   } catch (error) {
     ElMessage.error('分析失败')
   } finally {
     analysisLoading.value = false
   }
+}
+
+const goDreamRoom = () => {
+  router.push('/dream-room')
 }
 
 const maybePromptOther = () => {
@@ -339,8 +351,7 @@ const handleComment = async () => {
   try {
     await commentApi.createComment({
       dreamId: Number(route.params.id),
-      userId: userStore.userId,
-      content: commentContent.value,
+            content: commentContent.value,
       parentId: 0
     })
 
@@ -382,8 +393,7 @@ const submitReply = async (parentId) => {
   try {
     await commentApi.createComment({
       dreamId: Number(route.params.id),
-      userId: userStore.userId,
-      content: replyContent.value,
+            content: replyContent.value,
       parentId
     })
     ElMessage.success('回复成功')
@@ -411,7 +421,7 @@ const handleDelete = async () => {
       type: 'warning'
     })
 
-    await dreamApi.deleteDream(dream.value.id, userStore.userId)
+    await dreamApi.deleteDream(dream.value.id)
     ElMessage.success('删除成功')
     router.push(`/profile/${userStore.userId}`)
   } catch (error) {
@@ -462,7 +472,7 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 20px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .user-info {
@@ -474,12 +484,12 @@ onMounted(() => {
 .user-meta {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
 .username {
   font-weight: 600;
-  font-size: 16px;
+  font-size: 18px;
   cursor: pointer;
   color: #eef3ff;
 }
@@ -489,21 +499,22 @@ onMounted(() => {
 }
 
 .meta-info {
-  font-size: 12px;
-  color: #a8b8d1;
+  font-size: 13px;
+  color: #becde5;
 }
 
 .dream-title {
-  font-size: 32px;
+  font-size: 36px;
+  line-height: 1.3;
   font-weight: bold;
-  color: #f1f6ff;
-  margin-bottom: 20px;
+  color: #f7fbff;
+  margin-bottom: 22px;
 }
 
 .mood-section {
   display: flex;
   align-items: center;
-  margin-bottom: 30px;
+  margin-bottom: 24px;
 }
 
 .mood-label {
@@ -513,15 +524,16 @@ onMounted(() => {
 }
 
 .dream-content {
-  line-height: 2;
-  font-size: 16px;
-  color: #e6eefc;
+  line-height: 2.05;
+  font-size: 18px;
+  color: #eef5ff;
   white-space: pre-wrap;
-  margin-bottom: 30px;
-  padding: 20px;
-  background: rgba(14, 20, 32, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
+  word-break: break-word;
+  margin-bottom: 28px;
+  padding: 22px 24px;
+  background: rgba(14, 20, 32, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
 }
 
 .dream-images {
@@ -612,9 +624,9 @@ onMounted(() => {
 }
 
 .analysis-feedback {
-  color: #dbeafe;
-  line-height: 1.7;
-  font-size: 14px;
+  color: #e8f1ff;
+  line-height: 1.8;
+  font-size: 15px;
   padding: 12px 14px;
   background: rgba(15, 23, 42, 0.55);
   border-radius: 10px;
@@ -662,7 +674,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding-top: 20px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .stats {
@@ -674,7 +686,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 5px;
-  color: #a7b7cf;
+  color: #c1d0e7;
+  font-size: 14px;
 }
 
 .actions {
@@ -699,8 +712,9 @@ onMounted(() => {
 }
 
 .comment-title {
-  font-size: 18px;
+  font-size: 21px;
   font-weight: bold;
+  color: #f2f7ff;
 }
 
 .comment-form,
@@ -721,18 +735,25 @@ onMounted(() => {
 
 .comment-content-wrap {
   flex: 1;
+  background: rgba(10, 16, 28, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 12px 14px;
 }
 
 .comment-user {
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  font-size: 15px;
   color: #eef3ff;
 }
 
 .comment-text {
-  color: #d3def0;
-  line-height: 1.6;
+  color: #e6eefc;
+  line-height: 1.8;
+  font-size: 15px;
   margin-bottom: 8px;
+  word-break: break-word;
 }
 
 .comment-footer {
@@ -742,14 +763,14 @@ onMounted(() => {
 }
 
 .comment-time {
-  font-size: 12px;
-  color: #a5b4cb;
+  font-size: 13px;
+  color: #b7c8e2;
 }
 
 .reply-editor {
   margin-top: 10px;
-  background: rgba(12, 18, 29, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(12, 18, 29, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 8px;
   padding: 10px;
 }
@@ -762,15 +783,16 @@ onMounted(() => {
 }
 
 .reply-list {
-  margin-top: 10px;
+  margin-top: 12px;
   padding-left: 10px;
-  border-left: 2px solid #f0f0f0;
+  border-left: 2px solid rgba(143, 169, 216, 0.5);
 }
 
 .reply-item {
-  padding: 6px 0;
-  font-size: 13px;
-  color: #d5e0f2;
+  padding: 8px 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #e0eaf9;
 }
 
 .reply-user {
@@ -780,6 +802,11 @@ onMounted(() => {
 
 .reply-time {
   margin-left: 8px;
-  color: #9fb1cb;
+  color: #b2c4dd;
+}
+
+.mood-section :deep(.el-rate__text) {
+  color: #d8e6fc;
+  font-size: 14px;
 }
 </style>

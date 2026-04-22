@@ -265,7 +265,6 @@ const handleSubmit = async () => {
 
       const data = {
         ...dreamForm,
-        userId: Number(userStore.userId),
         tags: dreamForm.tagList.join(','),
         imageUrls: dreamForm.imageUrls.map((u) => normalizeStoreUrl(u)),
         dreamDate: dreamDateValue

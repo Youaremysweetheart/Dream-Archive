@@ -17,7 +17,7 @@ const routes = [
   {
     path: '/register',
     name: 'Register',
-    component: () => import('@/views/Register.vue'),
+    component: () => import('@/views/Login.vue'),
     meta: { title: '注册' }
   },
   {
@@ -37,6 +37,18 @@ const routes = [
     name: 'DreamDetail',
     component: () => import('@/views/DreamDetail.vue'),
     meta: { title: '梦境详情' }
+  },
+  {
+    path: '/dream-room',
+    name: 'DreamRoomWelcome',
+    component: () => import('@/views/DreamRoomWelcome.vue'),
+    meta: { title: '心理辅导室', requiresAuth: true }
+  },
+  {
+    path: '/dream-room/chat/:dreamPostId',
+    name: 'DreamRoom',
+    component: () => import('@/views/DreamRoom.vue'),
+    meta: { title: '心理辅导室', requiresAuth: true }
   },
   {
     path: '/profile/:id',

@@ -3,14 +3,15 @@
     <div class="header-container">
       <div class="header-left">
         <div class="logo" @click="$router.push('/')">
-          <span class="logo-icon">🌙</span>
-          <span class="logo-text">梦境档案馆</span>
+          <img class="logo-icon" :src="somniumLogo" alt="Somnium Logo" />
+          <span class="logo-text">Somnium Dream Archive</span>
         </div>
       </div>
 
       <nav class="header-nav">
         <router-link to="/" class="nav-item">首页</router-link>
         <router-link to="/explore" class="nav-item">探索梦境</router-link>
+        <router-link v-if="userStore.isLoggedIn" to="/dream-room" class="nav-item">心理辅导室</router-link>
       </nav>
 
       <div class="header-right">
@@ -70,6 +71,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { User, Document, Setting, SwitchButton, ArrowDown, EditPen } from '@element-plus/icons-vue'
+import somniumLogo from '@/assets/somnium-logo.svg'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -150,7 +152,7 @@ const handleLogout = async () => {
 .logo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   cursor: pointer;
   transition: transform 0.3s;
 }
@@ -160,16 +162,23 @@ const handleLogout = async () => {
 }
 
 .logo-icon {
-  font-size: 32px;
+  width: 34px;
+  height: 34px;
+  display: block;
+  filter: drop-shadow(0 2px 10px rgba(140, 123, 255, 0.45));
 }
 
 .logo-text {
-  font-size: 20px;
-  font-weight: bold;
-  background: linear-gradient(90deg, #00e5ff 0%, #7c4dff 45%, #ff3d81 100%);
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  font-family: Georgia, 'Times New Roman', 'Noto Serif SC', serif;
+  background: linear-gradient(92deg, #9af2ff 0%, #8f84ff 45%, #ff6bb1 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  text-shadow: 0 0 20px rgba(130, 120, 255, 0.2);
 }
 
 .header-nav {
@@ -243,7 +252,7 @@ const handleLogout = async () => {
   }
 
   .logo-text {
-    display: none;
+    font-size: 18px;
   }
 
   .username {

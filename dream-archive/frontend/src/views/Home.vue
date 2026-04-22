@@ -1,6 +1,6 @@
 ﻿<template>
-  <div class="home-page">
-    <section class="hero">
+  <div class="home-page" :class="{ 'entry-sequence': playEntrySequence }">
+    <section class="hero reveal-block" style="--delay: 0.06s">
       <div class="hero-overlay"></div>
       <div class="hero-content">
         <div class="hero-kicker">Dream Archive</div>
@@ -40,7 +40,7 @@
       </div>
     </section>
 
-    <section class="section">
+    <section class="section reveal-block" style="--delay: 0.2s">
       <div class="section-head">
         <h2>梦境分类</h2>
         <span>选择一个入口，开始探索相似梦境</span>
@@ -48,9 +48,10 @@
 
       <div class="category-grid">
         <article
-          v-for="category in categories"
+          v-for="(category, index) in categories"
           :key="category.id"
-          class="category-card"
+          class="category-card reveal-item"
+          :style="{ '--item-delay': `${0.28 + index * 0.06}s` }"
           @click="exploreCategory(category.id)"
         >
           <div class="category-glow" :style="{ background: category.color || '#6b7280' }"></div>
@@ -64,19 +65,24 @@
       </div>
     </section>
 
-    <section class="section">
+    <section class="section reveal-block" style="--delay: 0.34s">
       <div class="section-head">
         <h2>热门梦境</h2>
         <span>看看大家最近最有共鸣的梦</span>
       </div>
 
       <div class="dream-list">
-        <DreamCard
-          v-for="dream in hotDreams"
+        <div
+          v-for="(dream, index) in hotDreams"
           :key="dream.id"
-          :dream="dream"
-          @click="viewDream(dream.id)"
-        />
+          class="dream-item reveal-item"
+          :style="{ '--item-delay': `${0.44 + index * 0.08}s` }"
+        >
+          <DreamCard
+            :dream="dream"
+            @click="viewDream(dream.id)"
+          />
+        </div>
       </div>
     </section>
   </div>
@@ -94,6 +100,7 @@ const userStore = useUserStore()
 
 const categories = ref([])
 const hotDreams = ref([])
+const playEntrySequence = ref(false)
 
 const isLoggedIn = computed(() => userStore.isLoggedIn)
 
@@ -127,6 +134,10 @@ const viewDream = (id) => {
 }
 
 onMounted(() => {
+  if (sessionStorage.getItem('lumina-entry-sequence') === '1') {
+    playEntrySequence.value = true
+    sessionStorage.removeItem('lumina-entry-sequence')
+  }
   loadCategories()
   loadHotDreams()
 })
@@ -135,6 +146,22 @@ onMounted(() => {
 <style scoped>
 .home-page {
   padding-bottom: 48px;
+}
+
+.entry-sequence .reveal-block,
+.entry-sequence .reveal-item {
+  opacity: 0;
+  transform: translateY(22px) scale(0.985);
+  filter: blur(3px);
+  animation: revealCard 0.72s cubic-bezier(0.2, 0.72, 0.2, 1) forwards;
+}
+
+.entry-sequence .reveal-block {
+  animation-delay: var(--delay, 0s);
+}
+
+.entry-sequence .reveal-item {
+  animation-delay: var(--item-delay, 0s);
 }
 
 .hero {
@@ -321,6 +348,23 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: 18px;
+}
+
+.dream-item {
+  min-width: 0;
+}
+
+@keyframes revealCard {
+  0% {
+    opacity: 0;
+    transform: translateY(22px) scale(0.985);
+    filter: blur(3px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
 }
 
 @media (max-width: 768px) {

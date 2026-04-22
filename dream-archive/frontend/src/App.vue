@@ -1,20 +1,29 @@
 <template>
-  <div id="app">
-    <Header />
-    <main class="main-content">
+  <div id="app" :class="{ 'immersive-layout': isImmersive }">
+    <Header v-if="!isImmersive" />
+    <main class="main-content" :class="{ immersive: isImmersive }">
       <router-view />
     </main>
-    <Footer />
+    <Footer v-if="!isImmersive" />
   </div>
 </template>
 
 <script setup>
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import Header from '@/components/Header.vue'
 import Footer from '@/components/Footer.vue'
+
+const route = useRoute()
+const isImmersive = computed(() => {
+  return route.path === '/login' || route.path === '/register' || route.path.startsWith('/dream-room/chat')
+})
 </script>
 
 <style>
 :root {
+  --font-ui-cn: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  --el-font-family: var(--font-ui-cn);
   --bg-main: #111820;
   --bg-panel: rgba(22, 28, 40, 0.86);
   --text-main: #eaf1ff;
@@ -33,8 +42,7 @@ import Footer from '@/components/Footer.vue'
 }
 
 body {
-  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 
-               'Microsoft YaHei', Arial, sans-serif;
+  font-family: var(--font-ui-cn);
   color: var(--text-main);
   background:
     radial-gradient(850px 360px at 8% -10%, rgba(0, 229, 255, 0.15), transparent 58%),
@@ -45,6 +53,16 @@ body {
   min-height: 100vh;
 }
 
+html,
+body,
+#app,
+button,
+input,
+textarea,
+select {
+  font-family: var(--font-ui-cn);
+}
+
 #app {
   min-height: 100vh;
   display: flex;
@@ -52,11 +70,20 @@ body {
 }
 
 .main-content {
-  flex: 1;
+  flex: 1 0 auto;
   max-width: 1200px;
   width: 100%;
   margin: 0 auto;
   padding: 20px;
+  min-height: calc(100vh - 64px + 220px);
+}
+
+.main-content.immersive {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
 }
 
 /* Element Plus Global Tweaks */

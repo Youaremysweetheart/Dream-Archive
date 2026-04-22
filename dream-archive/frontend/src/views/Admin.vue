@@ -93,13 +93,13 @@
             <el-table-column prop="createTime" label="注册时间" width="180" />
             <el-table-column label="操作" min-width="260">
               <template #default="{ row }">
-                <el-button v-if="row.id !== currentUserId" size="small" @click="changeRole(row)">
+                <el-button v-if="row.id !== userStore.userId" size="small" @click="changeRole(row)">
                   {{ isAdminRole(row.role) ? '设为普通用户' : '设为管理员' }}
                 </el-button>
-                <el-button v-if="row.id !== currentUserId" size="small" @click="toggleStatus(row)">
+                <el-button v-if="row.id !== userStore.userId" size="small" @click="toggleStatus(row)">
                   {{ row.status === 1 ? '禁用' : '启用' }}
                 </el-button>
-                <el-button v-if="row.id !== currentUserId" size="small" type="danger" @click="deleteUser(row.id)">
+                <el-button v-if="row.id !== userStore.userId" size="small" type="danger" @click="deleteUser(row.id)">
                   删除
                 </el-button>
               </template>
@@ -161,7 +161,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { User, Document, ChatDotRound, DataAnalysis } from '@element-plus/icons-vue'
@@ -173,7 +173,6 @@ const userStore = useUserStore()
 
 const activeTab = ref('users')
 const selectedDreamIds = ref([])
-const currentUserId = computed(() => Number(userStore.userId || 0))
 
 const stats = reactive({
   totalUsers: 0,
@@ -214,14 +213,12 @@ const dreamPage = reactive({
 const isAdminRole = (role) => String(role || '').toUpperCase() === 'ADMIN'
 
 const fetchStats = async () => {
-  if (!currentUserId.value) return
-  const res = await adminApi.getStats(currentUserId.value)
+  const res = await adminApi.getStats()
   Object.assign(stats, res.data || {})
 }
 
 const fetchUsers = async () => {
-  if (!currentUserId.value) return
-  const res = await adminApi.getUsers(currentUserId.value, {
+  const res = await adminApi.getUsers({
     pageNum: userPage.pageNum,
     pageSize: userPage.pageSize,
     keyword: userFilter.keyword || undefined,
@@ -236,8 +233,7 @@ const fetchUsers = async () => {
 }
 
 const fetchDreams = async () => {
-  if (!currentUserId.value) return
-  const res = await adminApi.getDreams(currentUserId.value, {
+  const res = await adminApi.getDreams({
     pageNum: dreamPage.pageNum,
     pageSize: dreamPage.pageSize
   })
@@ -261,7 +257,7 @@ const changeRole = async (user) => {
     type: 'warning'
   })
 
-  await adminApi.updateUserRole(user.id, newRole, currentUserId.value)
+  await adminApi.updateUserRole(user.id, newRole)
   ElMessage.success('角色更新成功')
   await fetchUsers()
   await fetchStats()
@@ -277,7 +273,7 @@ const toggleStatus = async (user) => {
     type: 'warning'
   })
 
-  await adminApi.updateUserStatus(user.id, nextStatus, currentUserId.value)
+  await adminApi.updateUserStatus(user.id, nextStatus)
   ElMessage.success('状态更新成功')
   await fetchUsers()
 }
@@ -289,7 +285,7 @@ const deleteUser = async (id) => {
     type: 'error'
   })
 
-  await adminApi.deleteUser(id, currentUserId.value)
+  await adminApi.deleteUser(id)
   ElMessage.success('删除成功')
   await fetchUsers()
   await fetchStats()
@@ -306,7 +302,7 @@ const deleteDream = async (id) => {
     type: 'error'
   })
 
-  await adminApi.deleteDream(id, currentUserId.value)
+  await adminApi.deleteDream(id)
   ElMessage.success('删除成功')
   await fetchDreams()
   await fetchStats()
@@ -323,7 +319,7 @@ const batchDeleteDreams = async () => {
     type: 'error'
   })
 
-  await adminApi.batchDeleteDreams(selectedDreamIds.value, currentUserId.value)
+  await adminApi.batchDeleteDreams(selectedDreamIds.value)
   ElMessage.success('批量删除成功')
   selectedDreamIds.value = []
   await fetchDreams()

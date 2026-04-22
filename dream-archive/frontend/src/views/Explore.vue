@@ -161,7 +161,7 @@ onMounted(() => {
 
 .filter-card {
   margin-bottom: 20px;
-  border-radius: 15px;
+  border-radius: 18px;
 }
 
 .filter-content {
@@ -180,6 +180,56 @@ onMounted(() => {
   font-weight: 600;
   color: #d8e2f3;
   white-space: nowrap;
+}
+
+:deep(.el-radio-group) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+:deep(.el-radio-button__inner) {
+  border-radius: 10px !important;
+  border: 1px solid rgba(148, 163, 184, 0.3) !important;
+  background: rgba(9, 15, 24, 0.72) !important;
+  color: #d9e6fb !important;
+  box-shadow: none !important;
+  margin-right: 6px;
+  padding: 9px 14px;
+}
+
+:deep(.el-radio-button:first-child .el-radio-button__inner),
+:deep(.el-radio-button:last-child .el-radio-button__inner) {
+  border-radius: 10px !important;
+}
+
+:deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+  color: #f7fbff !important;
+  border-color: rgba(34, 211, 238, 0.75) !important;
+  background: linear-gradient(90deg, rgba(47, 107, 255, 0.8), rgba(6, 182, 212, 0.8)) !important;
+}
+
+:deep(.el-radio-button__inner:hover) {
+  border-color: rgba(56, 189, 248, 0.45) !important;
+  color: #f1f7ff !important;
+}
+
+:deep(.el-input-group__append) {
+  border-radius: 0 12px 12px 0 !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  border-left: none !important;
+  background: rgba(18, 28, 42, 0.85) !important;
+  box-shadow: none !important;
+}
+
+:deep(.el-input-group__append .el-button) {
+  border: none !important;
+  background: transparent !important;
+  color: #c8daef !important;
+}
+
+:deep(.el-input-group__append .el-button:hover) {
+  color: #eff7ff !important;
 }
 
 .dream-section {
