@@ -5,6 +5,8 @@ import com.dreamarchive.entity.User;
 import com.dreamarchive.entity.UserAvatar;
 import com.dreamarchive.mapper.UserAvatarMapper;
 import com.dreamarchive.mapper.UserMapper;
+import com.dreamarchive.utils.JwtUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -46,8 +48,14 @@ public class UserController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private JwtUtil jwtUtil;
+
     @Value("${file.upload-path:uploads/}")
     private String uploadPath;
+
+    @Value("${security.dev-reset-enabled:false}")
+    private boolean devResetEnabled;
     /**
      * 用户登录接口
      * @param params 包含 username 和 password 的请求参数
@@ -61,12 +69,12 @@ public class UserController {
 
             // 参数校验
             if (username == null || username.trim().isEmpty() || password == null || password.trim().isEmpty()) {
-                return Result.error("username or password is empty");
+                return Result.error("用户名或密码不能为空");
             }
 
             User user = userMapper.findByUsername(username.trim());
             if (user == null) {
-                return Result.error("user not found");
+                return Result.error("用户不存在");
             }
             if (user.getStatus() != null && user.getStatus() == 0) {
                 return Result.error("账号已被禁用");
@@ -83,18 +91,18 @@ public class UserController {
             }
 
             if (!valid) {
-                return Result.error("invalid username or password");
+                return Result.error("用户名或密码错误");
             }
 
             // 返回用户信息
             user.setPassword(null);
             Map<String, Object> data = new HashMap<>();
             data.put("user", user);
-            data.put("token", "mock-token-" + user.getId());
-            return Result.success("login success", data);
+            data.put("token", jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole()));
+            return Result.success("登录成功", data);
         } catch (Exception e) {
             e.printStackTrace();
-            return Result.error("login failed: " + e.getMessage());
+            return Result.error("登录失败: " + e.getMessage());
         }
     }
 
@@ -112,16 +120,16 @@ public class UserController {
 
             // 参数校验
             if (username == null || username.trim().isEmpty() || password == null || password.trim().isEmpty()) {
-                return Result.error("username or password is empty");
+                return Result.error("用户名或密码不能为空");
             }
             String normalizedPassword = password.trim();
             if (normalizedPassword.length() < PASSWORD_MIN_LENGTH || normalizedPassword.length() > PASSWORD_MAX_LENGTH) {
-                return Result.error("password length must be between 6 and 20");
+                return Result.error("密码长度必须在6到20位之间");
             }
 
             User existUser = userMapper.findByUsername(username.trim());
             if (existUser != null) {
-                return Result.error("username already exists");
+                return Result.error("用户名已存在");
             }
 
             // 创建新用户对象
@@ -134,10 +142,10 @@ public class UserController {
 
             userMapper.insert(user);
             user.setPassword(null);
-            return Result.success("register success", user);
+            return Result.success("注册成功", user);
         } catch (Exception e) {
             e.printStackTrace();
-            return Result.error("register failed: " + e.getMessage());
+            return Result.error("注册失败: " + e.getMessage());
         }
     }
     /**
@@ -150,13 +158,13 @@ public class UserController {
         try {
             User user = userMapper.findById(id);
             if (user == null) {
-                return Result.error("user not found");
+                return Result.error("用户不存在");
             }
             user.setPassword(null);
             return Result.success(user);
         } catch (Exception e) {
             e.printStackTrace();
-            return Result.error("get user failed: " + e.getMessage());
+            return Result.error("获取用户失败: " + e.getMessage());
         }
     }
     /**
@@ -166,13 +174,12 @@ public class UserController {
      * @return 更新后的用户信息
      */
     @PutMapping("/profile")
-    public Result<User> updateProfile(@RequestBody Map<String, Object> params) {
+    public Result<User> updateProfile(@RequestBody Map<String, Object> params, HttpServletRequest request) {
         try {
-            Object userIdValue = params.get("userId");
-            if (userIdValue == null) {
-                return Result.error("userId is required");
+            Long userId = getCurrentUserId(request);
+            if (userId == null) {
+                return Result.error(401, "未登录或登录已过期");
             }
-            Long userId = Long.valueOf(userIdValue.toString());
             String username = (String) params.get("username");
             String email = (String) params.get("email");
             String avatar = (String) params.get("avatar");
@@ -182,18 +189,18 @@ public class UserController {
             // 获取当前用户
             User user = userMapper.findById(userId);
             if (user == null) {
-                return Result.error("user not found");
+                return Result.error("用户不存在");
             }
 
             if (username != null) {
                 String newName = username.trim();
                 if (newName.isEmpty()) {
-                    return Result.error("username is empty");
+                    return Result.error("用户名不能为空");
                 }
                 if (!newName.equals(user.getUsername())) {
                     User exists = userMapper.findByUsername(newName);
                     if (exists != null && !exists.getId().equals(userId)) {
-                        return Result.error("username already exists");
+                        return Result.error("用户名已存在");
                     }
                     user.setUsername(newName);
                 }
@@ -209,15 +216,15 @@ public class UserController {
             // 更新密码
             if (newPassword != null && !newPassword.trim().isEmpty()) {
                 if (oldPassword == null || oldPassword.trim().isEmpty()) {
-                    return Result.error("oldPassword is required");
+                    return Result.error("修改密码时必须填写旧密码");
                 }
                 String normalizedNewPassword = newPassword.trim();
                 if (normalizedNewPassword.length() < PASSWORD_MIN_LENGTH
                         || normalizedNewPassword.length() > PASSWORD_MAX_LENGTH) {
-                    return Result.error("new password length must be between 6 and 20");
+                    return Result.error("新密码长度必须在6到20位之间");
                 }
                 if (!verifyPassword(oldPassword, user.getPassword())) {
-                    return Result.error("old password is incorrect");
+                    return Result.error("旧密码错误");
                 }
                 userMapper.updatePassword(userId, md5(normalizedNewPassword));
             }
@@ -227,31 +234,35 @@ public class UserController {
             user.setPassword(null);
 
             // 返回更新后的用户信息
-            return Result.success("update success", user);
+            return Result.success("更新成功", user);
         } catch (Exception e) {
             e.printStackTrace();
-            return Result.error("update failed: " + e.getMessage());
+            return Result.error("更新失败: " + e.getMessage());
         }
     }
     /**
      * 上传用户头像接口
      * @param file 头像文件
-     * @param userId 用户 ID
+     * @param request 用户 ID
      * @return 头像访问 URL
      */
     @PostMapping("/avatar")
-    public Result<String> uploadAvatar(@RequestParam("file") MultipartFile file,
-                                       @RequestParam("userId") Long userId) {
+    public Result<String> uploadAvatar(@RequestParam("file") MultipartFile file, HttpServletRequest request) {
         try {
+            Long userId = getCurrentUserId(request);
+            if (userId == null) {
+                return Result.error(401, "未登录或登录已过期");
+            }
+
             // 检查文件是否为空
             if (file.isEmpty()) {
-                return Result.error("file is empty");
+                return Result.error("上传文件不能为空");
             }
 
             // 检查用户是否存在
             User user = userMapper.findById(userId);
             if (user == null) {
-                return Result.error("user not found");
+                return Result.error("用户不存在");
             }
 
             // 创建上传目录
@@ -286,10 +297,10 @@ public class UserController {
             userAvatarMapper.insert(avatar);
 
             // 返回保存的图片路径
-            return Result.success("upload success", avatarUrl);
+            return Result.success("上传成功", avatarUrl);
         } catch (IOException e) {
             e.printStackTrace();
-            return Result.error("upload failed: " + e.getMessage());
+            return Result.error("上传失败: " + e.getMessage());
         }
     }
 
@@ -298,18 +309,25 @@ public class UserController {
      * Example: POST /api/user/reset-password-dev { "username": "lisi", "newPassword": "lisi123" }
      */
     @PostMapping("/reset-password-dev")
-    public Result<Void> resetPasswordDev(@RequestBody Map<String, String> params) {
+    public Result<Void> resetPasswordDev(@RequestBody Map<String, String> params, HttpServletRequest request) {
         try {
+            if (!devResetEnabled) {
+                return Result.error(403, "该接口未启用");
+            }
+            if (!isAdmin(request)) {
+                return Result.error(403, "无权限访问");
+            }
+
             String username = params.get("username");
             String newPassword = params.get("newPassword");
             if (username == null || username.trim().isEmpty() || newPassword == null || newPassword.trim().isEmpty()) {
-                return Result.error("username or newPassword is empty");
+                return Result.error("用户名或新密码不能为空");
             }
             int updated = userMapper.updatePasswordByUsername(username.trim(), md5(newPassword.trim()));
-            return updated > 0 ? Result.success("reset success", null) : Result.error("user not found");
+            return updated > 0 ? Result.success("重置成功", null) : Result.error("用户不存在");
         } catch (Exception e) {
             e.printStackTrace();
-            return Result.error("reset failed: " + e.getMessage());
+            return Result.error("重置失败: " + e.getMessage());
         }
     }
 
@@ -371,7 +389,7 @@ public class UserController {
             }
             return sb.toString();
         } catch (Exception e) {
-            throw new RuntimeException("md5 failed", e);
+            throw new RuntimeException("MD5 计算失败", e);
         }
     }
     /**
@@ -381,5 +399,21 @@ public class UserController {
      */
     private boolean isAdminRole(String role) {
         return role != null && "ADMIN".equalsIgnoreCase(role.trim());
+    }
+
+    private boolean isAdmin(HttpServletRequest request) {
+        Object role = request.getAttribute("currentUserRole");
+        return role instanceof String s && "ADMIN".equalsIgnoreCase(s.trim());
+    }
+
+    private Long getCurrentUserId(HttpServletRequest request) {
+        Object value = request.getAttribute("currentUserId");
+        if (value instanceof Long l) {
+            return l;
+        }
+        if (value instanceof Number n) {
+            return n.longValue();
+        }
+        return null;
     }
 }

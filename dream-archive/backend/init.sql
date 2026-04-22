@@ -117,6 +117,66 @@ CREATE TABLE IF NOT EXISTS `system_config` (
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated time'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='System config table';
 
+-- 8. Dream room table
+CREATE TABLE IF NOT EXISTS `dream_room` (
+    `id` BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT 'Primary key',
+    `dream_room_id` VARCHAR(64) NOT NULL COMMENT 'Dream room id',
+    `user_id` BIGINT NOT NULL COMMENT 'User ID',
+    `dream_post_id` BIGINT NOT NULL COMMENT 'Dream post id (dream.id)',
+    `dream_room_status` TINYINT NOT NULL DEFAULT 1 COMMENT '0 abnormal, 1 first enter, 2 normal chat, 3 banned',
+    `opening_message_generated` TINYINT NOT NULL DEFAULT 0 COMMENT 'Whether opening message has been generated',
+    `dify_conversation_id` VARCHAR(128) COMMENT 'Dify conversation id',
+    `banned_reason` VARCHAR(255) COMMENT 'Banned reason',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT 'Created time',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated time',
+    UNIQUE KEY uk_dream_room_id (`dream_room_id`),
+    UNIQUE KEY uk_user_post_room (`user_id`, `dream_post_id`),
+    INDEX idx_room_status (`dream_room_status`),
+    INDEX idx_room_post (`dream_post_id`),
+    FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`dream_post_id`) REFERENCES `dream`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Dream counseling room';
+
+-- 9. Dream room message table
+CREATE TABLE IF NOT EXISTS `dream_room_message` (
+    `id` BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT 'Primary key',
+    `dream_room_id` VARCHAR(64) NOT NULL COMMENT 'Dream room id',
+    `user_id` BIGINT NOT NULL COMMENT 'Room owner user id',
+    `dream_post_id` BIGINT NOT NULL COMMENT 'Dream post id',
+    `sender_id` BIGINT NOT NULL COMMENT 'Sender id, 0 means assistant',
+    `message_role` TINYINT NOT NULL COMMENT '1 opening, 2 question, 3 answer, 4 violation tip, 5 system tip',
+    `message_text` TEXT NOT NULL COMMENT 'Message text',
+    `is_violation` TINYINT NOT NULL DEFAULT 0 COMMENT 'Violation flag',
+    `client_msg_id` VARCHAR(64) COMMENT 'Client message id for idempotency',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT 'Created time',
+    UNIQUE KEY uk_room_client_msg (`dream_room_id`, `client_msg_id`),
+    INDEX idx_room_time (`dream_room_id`, `create_time`),
+    INDEX idx_user_post (`user_id`, `dream_post_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Dream room message';
+
+-- 10. Dream room ai task table (queue)
+CREATE TABLE IF NOT EXISTS `dream_room_ai_task` (
+    `id` BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT 'Primary key',
+    `task_id` VARCHAR(64) NOT NULL COMMENT 'Task id',
+    `dream_room_id` VARCHAR(64) NOT NULL COMMENT 'Dream room id',
+    `user_id` BIGINT NOT NULL COMMENT 'User id',
+    `dream_post_id` BIGINT NOT NULL COMMENT 'Dream post id',
+    `dream_post_content` MEDIUMTEXT NOT NULL COMMENT 'Dream post content snapshot',
+    `dream_room_status` TINYINT NOT NULL COMMENT 'Status snapshot when enqueue',
+    `question` TEXT COMMENT 'User question',
+    `answer` TEXT COMMENT 'Assistant answer',
+    `is_violation` TINYINT NOT NULL DEFAULT 0 COMMENT 'Violation flag from dify',
+    `task_type` TINYINT NOT NULL COMMENT '1 opening, 2 qa',
+    `task_status` TINYINT NOT NULL DEFAULT 0 COMMENT '0 pending, 1 processing, 2 success, 3 failed',
+    `retry_count` INT NOT NULL DEFAULT 0 COMMENT 'Retry count',
+    `last_error` VARCHAR(500) COMMENT 'Last error',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT 'Created time',
+    `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Updated time',
+    UNIQUE KEY uk_task_id (`task_id`),
+    INDEX idx_task_status (`task_status`, `create_time`),
+    INDEX idx_task_room (`dream_room_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Dream room async ai task queue';
+
 -- Seed dream categories
 INSERT INTO `dream_category` (`name`, `description`, `icon`, `color`, `sort_order`) VALUES
 ('快乐梦', '充满欢笑与愉快的美好梦境', '😊', '#52c41a', 1),

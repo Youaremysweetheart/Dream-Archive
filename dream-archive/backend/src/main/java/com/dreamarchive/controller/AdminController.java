@@ -7,6 +7,7 @@ import com.dreamarchive.entity.User;
 import com.dreamarchive.mapper.CommentMapper;
 import com.dreamarchive.mapper.DreamMapper;
 import com.dreamarchive.mapper.UserMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,8 +30,8 @@ public class AdminController {
     private CommentMapper commentMapper;
 
     @GetMapping("/stats")
-    public Result<Map<String, Object>> getStats(@RequestParam Long adminId) {
-        Result<Void> auth = checkAdmin(adminId);
+    public Result<Map<String, Object>> getStats(HttpServletRequest request) {
+        Result<Void> auth = checkAdmin(request);
         if (auth != null) {
             return Result.error(auth.getCode(), auth.getMessage());
         }
@@ -58,7 +59,7 @@ public class AdminController {
     }
 
     @GetMapping("/users")
-    public Result<PageResult<User>> getAllUsers(@RequestParam Long adminId,
+    public Result<PageResult<User>> getAllUsers(HttpServletRequest request,
                                                 @RequestParam(defaultValue = "1") int pageNum,
                                                 @RequestParam(defaultValue = "20") int pageSize,
                                                 @RequestParam(required = false) String keyword,
@@ -66,7 +67,7 @@ public class AdminController {
                                                 @RequestParam(required = false) Integer status,
                                                 @RequestParam(defaultValue = "id") String sortBy,
                                                 @RequestParam(defaultValue = "asc") String sortOrder) {
-        Result<Void> auth = checkAdmin(adminId);
+        Result<Void> auth = checkAdmin(request);
         if (auth != null) {
             return Result.error(auth.getCode(), auth.getMessage());
         }
@@ -88,10 +89,10 @@ public class AdminController {
     }
 
     @GetMapping("/dreams")
-    public Result<PageResult<Dream>> getAllDreams(@RequestParam Long adminId,
+    public Result<PageResult<Dream>> getAllDreams(HttpServletRequest request,
                                                    @RequestParam(defaultValue = "1") int pageNum,
                                                    @RequestParam(defaultValue = "20") int pageSize) {
-        Result<Void> auth = checkAdmin(adminId);
+        Result<Void> auth = checkAdmin(request);
         if (auth != null) {
             return Result.error(auth.getCode(), auth.getMessage());
         }
@@ -108,8 +109,8 @@ public class AdminController {
     }
 
     @DeleteMapping("/dream/{id}")
-    public Result<Void> deleteDream(@PathVariable Long id, @RequestParam Long adminId) {
-        Result<Void> auth = checkAdmin(adminId);
+    public Result<Void> deleteDream(@PathVariable Long id, HttpServletRequest request) {
+        Result<Void> auth = checkAdmin(request);
         if (auth != null) {
             return auth;
         }
@@ -125,13 +126,14 @@ public class AdminController {
 
     // 删除用户
     @DeleteMapping("/user/{id}")
-    public Result<Void> deleteUser(@PathVariable Long id, @RequestParam Long adminId) {
-        Result<Void> auth = checkAdmin(adminId);
+    public Result<Void> deleteUser(@PathVariable Long id, HttpServletRequest request) {
+        Result<Void> auth = checkAdmin(request);
         if (auth != null) {
             return auth;
         }
 
         try {
+            Long adminId = getCurrentUserId(request);
             if (id.equals(adminId)) {
                 return Result.error("不能删除当前管理员账号");
             }
@@ -155,21 +157,22 @@ public class AdminController {
     // 更新用户角色
     @PutMapping("/user/{id}/role")
     public Result<User> updateUserRole(@PathVariable Long id,
-                                       @RequestParam Long adminId,
+                                       HttpServletRequest request,
                                        @RequestBody Map<String, String> params) {
-        Result<Void> auth = checkAdmin(adminId);
+        Result<Void> auth = checkAdmin(request);
         if (auth != null) {
             return Result.error(auth.getCode(), auth.getMessage());
         }
 
         try {
+            Long adminId = getCurrentUserId(request);
             if (id.equals(adminId)) {
                 return Result.error("不能修改自己的角色");
             }
 
             String role = normalizeRole(params.get("role"));
             if (role == null) {
-                return Result.error(" 角色必须是 ADMIN 或 USER");
+                return Result.error("角色必须是管理员或普通用户");
             }
 
             User user = userMapper.findById(id);
@@ -189,14 +192,15 @@ public class AdminController {
 
     @PutMapping("/user/{id}/status")
     public Result<User> updateUserStatus(@PathVariable Long id,
-                                         @RequestParam Long adminId,
+                                         HttpServletRequest request,
                                          @RequestBody Map<String, Integer> params) {
-        Result<Void> auth = checkAdmin(adminId);
+        Result<Void> auth = checkAdmin(request);
         if (auth != null) {
             return Result.error(auth.getCode(), auth.getMessage());
         }
 
         try {
+            Long adminId = getCurrentUserId(request);
             Integer status = params.get("status");
             if (status == null || (status != 0 && status != 1)) {
                 return Result.error("状态必须是 0（禁用）或 1（正常）");
@@ -222,9 +226,9 @@ public class AdminController {
     }
 
     @PostMapping("/dreams/batch-delete")
-    public Result<Void> batchDeleteDreams(@RequestParam Long adminId,
+    public Result<Void> batchDeleteDreams(HttpServletRequest request,
                                           @RequestBody Map<String, List<Long>> params) {
-        Result<Void> auth = checkAdmin(adminId);
+        Result<Void> auth = checkAdmin(request);
         if (auth != null) {
             return auth;
         }
@@ -245,9 +249,10 @@ public class AdminController {
         }
     }
 
-    private Result<Void> checkAdmin(Long adminId) {
+    private Result<Void> checkAdmin(HttpServletRequest request) {
+        Long adminId = getCurrentUserId(request);
         if (adminId == null) {
-            return Result.error(401, "管理员 ID 不能为空");
+            return Result.error(401, "管理员编号不能为空");
         }
 
         User admin = userMapper.findById(adminId);
@@ -261,6 +266,17 @@ public class AdminController {
             return Result.error(403, "管理员账号已被禁用");
         }
 
+        return null;
+    }
+
+    private Long getCurrentUserId(HttpServletRequest request) {
+        Object value = request.getAttribute("currentUserId");
+        if (value instanceof Long l) {
+            return l;
+        }
+        if (value instanceof Number n) {
+            return n.longValue();
+        }
         return null;
     }
 

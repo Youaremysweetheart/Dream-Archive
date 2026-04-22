@@ -3,6 +3,7 @@ package com.dreamarchive;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * 梦境档案馆 - 主启动类
@@ -10,6 +11,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication
 @MapperScan("com.dreamarchive.mapper")
+@EnableScheduling
 public class DreamArchiveApplication {
     
     public static void main(String[] args) {

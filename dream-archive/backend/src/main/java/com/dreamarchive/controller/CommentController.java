@@ -5,6 +5,7 @@ import com.dreamarchive.common.Result;
 import com.dreamarchive.entity.Comment;
 import com.dreamarchive.mapper.CommentMapper;
 import com.dreamarchive.mapper.DreamMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,17 +26,23 @@ public class CommentController {
     @Autowired
     private DreamMapper dreamMapper;
 
-    // 创建
+    // 新评论
     @PostMapping("/create")
-    public Result<Comment> createComment(@RequestBody Comment comment) {
+    public Result<Comment> createComment(@RequestBody Comment comment, HttpServletRequest request) {
         try {
-            if (comment.getDreamId() == null || comment.getUserId() == null || comment.getContent() == null
+            Long userId = getCurrentUserId(request);
+            if (userId == null) {
+                return Result.error(401, "未登录或登录已过期");
+            }
+
+            if (comment.getDreamId() == null || comment.getContent() == null
                     || comment.getContent().trim().isEmpty()) {
-                return Result.error("invalid params");
+                return Result.error("参数不完整");
             }
             if (comment.getParentId() == null) {
                 comment.setParentId(0L);
             }
+            comment.setUserId(userId);
             commentMapper.insert(comment);
             dreamMapper.refreshCommentCount(comment.getDreamId());
             return Result.success("评论成功", comment);
@@ -97,11 +104,18 @@ public class CommentController {
 
     // 删除
     @DeleteMapping("/{id}")
-    public Result<Void> deleteComment(@PathVariable Long id) {
+    public Result<Void> deleteComment(@PathVariable Long id, HttpServletRequest request) {
         try {
+            Long userId = getCurrentUserId(request);
+            if (userId == null) {
+                return Result.error(401, "未登录或登录已过期");
+            }
             Comment existing = commentMapper.findById(id);
             if (existing == null) {
-                return Result.error("comment not found");
+                return Result.error("评论不存在");
+            }
+            if (!isAdmin(request) && !userId.equals(existing.getUserId())) {
+                return Result.error(403, "无权限删除该评论");
             }
 
             commentMapper.deleteByParentId(id);
@@ -116,5 +130,21 @@ public class CommentController {
             e.printStackTrace();
             return Result.error("删除失败: " + e.getMessage());
         }
+    }
+
+    private Long getCurrentUserId(HttpServletRequest request) {
+        Object value = request.getAttribute("currentUserId");
+        if (value instanceof Long l) {
+            return l;
+        }
+        if (value instanceof Number n) {
+            return n.longValue();
+        }
+        return null;
+    }
+
+    private boolean isAdmin(HttpServletRequest request) {
+        Object role = request.getAttribute("currentUserRole");
+        return role instanceof String s && "ADMIN".equalsIgnoreCase(s.trim());
     }
 }

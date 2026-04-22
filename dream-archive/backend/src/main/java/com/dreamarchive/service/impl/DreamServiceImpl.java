@@ -44,7 +44,7 @@ public class DreamServiceImpl implements DreamService {
             return null;
         }
 
-        dreamMapper.incrementViewCount(id);
+        dreamMapper.incrementViewCount(id); //浏览量自增+1
 
         if (currentUserId != null) {
             boolean isLiked = likeRecordMapper.exists(currentUserId, id, 1);

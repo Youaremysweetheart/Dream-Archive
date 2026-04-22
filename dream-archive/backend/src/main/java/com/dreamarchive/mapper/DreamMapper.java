@@ -22,6 +22,14 @@ public interface DreamMapper {
             "WHERE d.id = #{id}")
     Dream findById(Long id);
 
+    @Select(SELECT_BASE +
+            "FROM dream d " +
+            "LEFT JOIN user u ON d.user_id = u.id " +
+            "LEFT JOIN dream_category c ON d.category_id = c.id " +
+            "WHERE d.user_id = #{userId} AND DATE(d.create_time) = CURDATE() AND d.status = 1 " +
+            "ORDER BY d.create_time DESC LIMIT 1")
+    Dream findTodayLatestByUserId(@Param("userId") Long userId);
+
     @Select("<script>" +
             SELECT_BASE +
             "FROM dream d " +
@@ -93,7 +101,7 @@ public interface DreamMapper {
     int updateAnalysis(Dream dream);
 
     @Delete("DELETE FROM dream WHERE id = #{id}")
-    int delete(Long id);
+    int delete(Long id);    // 删除 dreams
 
     @Update("UPDATE dream SET view_count = view_count + 1 WHERE id = #{id}")
     int incrementViewCount(Long id);
