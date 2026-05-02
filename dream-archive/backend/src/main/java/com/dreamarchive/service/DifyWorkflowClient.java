@@ -74,7 +74,7 @@ public class DifyWorkflowClient {
         boolean isViolation = toBooleanValue(outputs.get("is_violation"));
 
         if (answer.isBlank()) {
-            answer = "已收到你的消息，请稍后再试。";
+            answer = "Message received. Please try again shortly.";
         }
 
         return new DifyWorkflowOutput(answer, isViolation);

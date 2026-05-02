@@ -34,3 +34,8 @@ logs/
 # Sensitive Spring profiles
 **/application-prod.yml
 **/application-dev.yml
+
+AGENTS.md
+docs/interview-guide.md
+docs/resume-java-backend-rewrite.md
+docs.*
