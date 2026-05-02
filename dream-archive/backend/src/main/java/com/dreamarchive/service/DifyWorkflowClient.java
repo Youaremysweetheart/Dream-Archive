@@ -16,6 +16,9 @@ import org.springframework.web.client.RestTemplate;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 调用 Dify Workflow（阻塞模式），解析 outputs 中的 answer 与 is_violation。
+ */
 @Service
 public class DifyWorkflowClient {
 
@@ -38,7 +41,7 @@ public class DifyWorkflowClient {
 
     public DifyWorkflowOutput run(DifyWorkflowInput input) {
         if (apiKey.isBlank() || "app-xxxx".equalsIgnoreCase(apiKey)) {
-            throw new IllegalStateException("Dify API key is not configured");
+            throw new IllegalStateException("未配置有效的 Dify API Key");
         }
 
         String url = baseUrl + runPath;
@@ -49,7 +52,7 @@ public class DifyWorkflowClient {
         Map<String, Object> inputs = new HashMap<>();
         inputs.put("user_id", safe(input.getUserId()));
         inputs.put("dream_post_id", safe(input.getDreamPostId()));
-        // Compatibility for workflow variable typo.
+        // 兼容工作流中变量名拼写错误（drem_post_id）。
         inputs.put("drem_post_id", safe(input.getDreamPostId()));
         inputs.put("dream_room_id", safe(input.getDreamRoomId()));
         inputs.put("dream_room_status", input.getDreamRoomStatus());
@@ -66,7 +69,7 @@ public class DifyWorkflowClient {
         Map<String, Object> responseBody = response.getBody();
 
         if (responseBody == null) {
-            throw new IllegalStateException("Dify response body is empty");
+            throw new IllegalStateException("Dify 返回体为空");
         }
 
         Map<String, Object> outputs = extractOutputs(responseBody);
@@ -74,7 +77,7 @@ public class DifyWorkflowClient {
         boolean isViolation = toBooleanValue(outputs.get("is_violation"));
 
         if (answer.isBlank()) {
-            answer = "Message received. Please try again shortly.";
+            answer = "已收到您的消息，请稍后再试。";
         }
 
         return new DifyWorkflowOutput(answer, isViolation);
@@ -95,7 +98,7 @@ public class DifyWorkflowClient {
             return (Map<String, Object>) outputMap;
         }
 
-        log.warn("Dify output format mismatch: {}", responseBody);
+        log.warn("Dify 返回结构与预期不符：{}", responseBody);
         return Map.of();
     }
 

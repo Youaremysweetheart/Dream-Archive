@@ -10,6 +10,7 @@ import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
+/** Dify 异步任务队列：待处理拉取、状态更新与重试计数。 */
 @Mapper
 public interface DreamRoomAiTaskMapper {
 
@@ -44,4 +45,7 @@ public interface DreamRoomAiTaskMapper {
     @Select("SELECT COUNT(*) FROM dream_room_ai_task WHERE dream_room_id = #{dreamRoomId} AND task_type = #{taskType} " +
             "AND task_status IN (0, 1)")
     int countActiveByRoomAndType(@Param("dreamRoomId") String dreamRoomId, @Param("taskType") Integer taskType);
+
+    @Select("SELECT COUNT(*) FROM dream_room_ai_task WHERE dream_room_id = #{dreamRoomId} AND task_status IN (0, 1)")
+    int countActiveByRoom(@Param("dreamRoomId") String dreamRoomId);
 }

@@ -16,6 +16,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+/**
+ * JWT 鉴权拦截器：校验请求头中的 Bearer Token，将当前用户 ID、用户名、角色写入 request 属性。
+ * 公开接口（登录、注册、公开梦境列表等）放行；其余接口需有效令牌。
+ */
 @Component
 public class JwtAuthInterceptor implements HandlerInterceptor {
 
@@ -55,7 +59,7 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
 
         String token = extractToken(request);
         if (token == null || token.isBlank() || !jwtUtil.validateToken(token)) {
-            writeUnauthorized(response, "Unauthorized");
+            writeUnauthorized(response, "未登录或登录已过期");
             return false;
         }
 
@@ -66,6 +70,7 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
         return true;
     }
 
+    /** 从 Authorization: Bearer 或自定义 token 头解析 JWT。 */
     private String extractToken(HttpServletRequest request) {
         String authHeader = request.getHeader(AUTHORIZATION);
         if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
@@ -74,6 +79,7 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
         return request.getHeader("token");
     }
 
+    /** 判断是否为无需登录的路径（注册登录 POST、公开 GET、静态上传等）。 */
     private boolean isPublicEndpoint(HttpServletRequest request) {
         String method = request.getMethod();
         String path = resolveApiPath(request);
@@ -97,6 +103,7 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
         return "/error".equals(path) || path.startsWith("/uploads/");
     }
 
+    /** 统一得到去掉 context-path 与 /api 前缀后的路径，便于与白名单匹配。 */
     private String resolveApiPath(HttpServletRequest request) {
         String path = request.getServletPath();
         if (path != null && !path.isBlank() && !"/".equals(path)) {
@@ -138,6 +145,7 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
         return path;
     }
 
+    /** 以 JSON 形式返回 401，供前端统一处理。 */
     private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());

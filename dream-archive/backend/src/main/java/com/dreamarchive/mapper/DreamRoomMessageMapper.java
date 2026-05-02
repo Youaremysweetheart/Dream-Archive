@@ -9,6 +9,7 @@ import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
+/** 房间内聊天记录：插入与按房间分页查询。 */
 @Mapper
 public interface DreamRoomMessageMapper {
 
@@ -27,4 +28,7 @@ public interface DreamRoomMessageMapper {
 
     @Select("SELECT COUNT(*) FROM dream_room_message WHERE dream_room_id = #{dreamRoomId}")
     long countByRoom(@Param("dreamRoomId") String dreamRoomId);
+
+    @Select("SELECT COUNT(*) FROM dream_room_message WHERE dream_room_id = #{dreamRoomId} AND message_role = #{messageRole}")
+    long countByRoomAndRole(@Param("dreamRoomId") String dreamRoomId, @Param("messageRole") Integer messageRole);
 }

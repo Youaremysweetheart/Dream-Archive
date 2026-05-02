@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="admin-dashboard">
     <el-alert
       v-if="!userStore.isAdmin"
@@ -44,8 +44,8 @@
           <div class="stat-content">
             <el-icon :size="36" color="#dc2626"><DataAnalysis /></el-icon>
             <div>
-              <div class="stat-value">{{ stats.adminUsers }} / {{ stats.normalUsers }}</div>
-              <div class="stat-label">管理员 / 普通用户</div>
+              <div class="stat-value">{{ stats.bannedDreamRooms }} / {{ stats.totalDreamRooms }}</div>
+              <div class="stat-label">封禁辅导室 / 辅导室总数</div>
             </div>
           </div>
         </el-card>
@@ -87,7 +87,9 @@
             </el-table-column>
             <el-table-column prop="status" label="状态" width="100">
               <template #default="{ row }">
-                <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
+                <el-tag :type="row.status === 1 ? 'success' : 'info'">
+                  {{ row.status === 1 ? '启用' : '禁用' }}
+                </el-tag>
               </template>
             </el-table-column>
             <el-table-column prop="createTime" label="注册时间" width="180" />
@@ -123,25 +125,35 @@
             </el-button>
           </div>
 
-          <el-table :data="dreams" style="width: 100%" @selection-change="onDreamSelectionChange">
+          <el-table :data="dreams" class="dream-admin-table" style="width: 100%" @selection-change="onDreamSelectionChange">
             <el-table-column type="selection" width="50" />
             <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="title" label="标题" min-width="220" />
-            <el-table-column prop="username" label="作者" width="120" />
-            <el-table-column prop="categoryName" label="分类" width="100" />
-            <el-table-column prop="isPublic" label="可见性" width="100">
+            <el-table-column label="梦境信息" min-width="320">
               <template #default="{ row }">
-                <el-tag :type="row.isPublic === 1 ? 'success' : 'info'">{{ row.isPublic === 1 ? '公开' : '私密' }}</el-tag>
+                <div class="meta-stack">
+                  <div class="meta-primary ellipsis-one">{{ row.title || '-' }}</div>
+                  <div class="meta-secondary">
+                    {{ row.username || '-' }} · {{ row.categoryName || '未分类' }} · {{ row.isPublic === 1 ? '公开' : '私密' }}
+                  </div>
+                </div>
               </template>
             </el-table-column>
-            <el-table-column prop="viewCount" label="浏览" width="80" />
-            <el-table-column prop="likeCount" label="点赞" width="80" />
-            <el-table-column prop="commentCount" label="评论" width="80" />
-            <el-table-column prop="createTime" label="创建时间" width="180" />
-            <el-table-column label="操作" width="150">
+            <el-table-column label="互动数据" width="150">
               <template #default="{ row }">
-                <el-button size="small" @click="viewDream(row.id)">查看</el-button>
-                <el-button size="small" type="danger" @click="deleteDream(row.id)">删除</el-button>
+                <div class="stats-stack">
+                  <div>浏览 {{ row.viewCount ?? 0 }}</div>
+                  <div>点赞 {{ row.likeCount ?? 0 }}</div>
+                  <div>评论 {{ row.commentCount ?? 0 }}</div>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column prop="createTime" label="创建时间" width="180" show-overflow-tooltip />
+            <el-table-column label="操作" width="120" align="center">
+              <template #default="{ row }">
+                <div class="table-actions">
+                  <el-button size="small" @click="viewDream(row.id)">查看</el-button>
+                  <el-button size="small" type="danger" @click="deleteDream(row.id)">删除</el-button>
+                </div>
               </template>
             </el-table-column>
           </el-table>
@@ -155,7 +167,144 @@
             style="margin-top: 16px; justify-content: center"
           />
         </el-tab-pane>
+
+        <el-tab-pane label="心理辅导室管理" name="dreamRooms">
+          <div class="toolbar">
+            <el-input v-model="dreamRoomFilter.keyword" placeholder="搜索房间号/用户名/邮箱/梦境标题" clearable style="width: 280px" />
+            <el-select v-model="dreamRoomFilter.status" placeholder="房间状态" clearable style="width: 140px">
+              <el-option label="异常" :value="0" />
+              <el-option label="首次进入" :value="1" />
+              <el-option label="正常聊天" :value="2" />
+              <el-option label="已封禁" :value="3" />
+            </el-select>
+            <el-button type="primary" @click="reloadDreamRooms">查询</el-button>
+          </div>
+
+          <el-table :data="dreamRooms" class="dream-room-table" style="width: 100%">
+            <el-table-column label="用户信息" min-width="180">
+              <template #default="{ row }">
+                <div class="meta-stack">
+                  <div class="meta-primary ellipsis-one">{{ row.username || '-' }}</div>
+                  <div class="meta-secondary ellipsis-one">{{ row.email || '-' }}</div>
+                </div>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="房间与梦境" min-width="220">
+              <template #default="{ row }">
+                <div class="meta-stack">
+                  <div class="meta-primary ellipsis-one">{{ row.dreamTitle || '-' }}</div>
+                  <div class="meta-secondary ellipsis-one">房间号：{{ row.dreamRoomId || '-' }}</div>
+                </div>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="状态" width="110">
+              <template #default="{ row }">
+                <div class="status-cell">
+                  <el-tag :type="dreamRoomStatusType(row.dreamRoomStatus)">
+                    {{ dreamRoomStatusText(row.dreamRoomStatus) }}
+                  </el-tag>
+                  <div class="status-subtext">消息 {{ row.messageCount ?? 0 }}</div>
+                </div>
+              </template>
+            </el-table-column>
+
+            <el-table-column prop="updateTime" label="最后更新时间" width="165" show-overflow-tooltip />
+
+            <el-table-column label="操作" width="96" align="center">
+              <template #default="{ row }">
+                <div class="table-actions">
+                  <el-button size="small" @click="openDreamRoomDetail(row)">详情</el-button>
+                  <el-button
+                    v-if="row.dreamRoomStatus !== 3"
+                    size="small"
+                    type="danger"
+                    @click="openBanDialog(row)"
+                  >
+                    封禁
+                  </el-button>
+                  <el-button
+                    v-else
+                    size="small"
+                    type="success"
+                    @click="unbanDreamRoom(row)"
+                  >
+                    解禁
+                  </el-button>
+                </div>
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <el-pagination
+            v-model:current-page="dreamRoomPage.pageNum"
+            v-model:page-size="dreamRoomPage.pageSize"
+            :total="dreamRoomPage.total"
+            layout="total, prev, pager, next"
+            @current-change="fetchDreamRooms"
+            style="margin-top: 16px; justify-content: center"
+          />
+        </el-tab-pane>
       </el-tabs>
+
+      <el-dialog v-model="banDialog.visible" title="手动封禁心理辅导室" width="480px">
+        <div class="dialog-tip">
+          当前房间：{{ banDialog.room?.dreamRoomId || '-' }}，用户：{{ banDialog.room?.username || '-' }}
+        </div>
+        <el-input
+          v-model="banDialog.reason"
+          type="textarea"
+          :rows="4"
+          maxlength="255"
+          show-word-limit
+          placeholder="请输入封禁原因，用户和管理员都可用于后续追溯"
+        />
+        <template #footer>
+          <el-button @click="banDialog.visible = false">取消</el-button>
+          <el-button type="danger" @click="submitBanDreamRoom">确认封禁</el-button>
+        </template>
+      </el-dialog>
+
+      <el-dialog v-model="detailDialog.visible" title="心理辅导室详情" width="560px">
+        <div v-if="detailDialog.room" class="detail-grid">
+          <div class="detail-item">
+            <div class="detail-label">所属用户</div>
+            <div class="detail-value">{{ detailDialog.room.username || '-' }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">用户邮箱</div>
+            <div class="detail-value">{{ detailDialog.room.email || '-' }}</div>
+          </div>
+          <div class="detail-item detail-item-full">
+            <div class="detail-label">关联梦境</div>
+            <div class="detail-value">{{ detailDialog.room.dreamTitle || '-' }}</div>
+          </div>
+          <div class="detail-item detail-item-full">
+            <div class="detail-label">房间号</div>
+            <div class="detail-value">{{ detailDialog.room.dreamRoomId || '-' }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">房间状态</div>
+            <div class="detail-value">{{ dreamRoomStatusText(detailDialog.room.dreamRoomStatus) }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">消息数</div>
+            <div class="detail-value">{{ detailDialog.room.messageCount ?? 0 }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">最后更新时间</div>
+            <div class="detail-value">{{ detailDialog.room.updateTime || '-' }}</div>
+          </div>
+          <div class="detail-item detail-item-full">
+            <div class="detail-label">封禁原因</div>
+            <div class="detail-value detail-pre">{{ detailDialog.room.bannedReason || '暂无' }}</div>
+          </div>
+        </div>
+        <template #footer>
+          <el-button @click="detailDialog.visible = false">关闭</el-button>
+        </template>
+      </el-dialog>
     </template>
   </div>
 </template>
@@ -182,6 +331,8 @@ const stats = reactive({
   privateDreams: 0,
   adminUsers: 0,
   normalUsers: 0,
+  totalDreamRooms: 0,
+  bannedDreamRooms: 0,
   todayUsers: 0,
   todayDreams: 0,
   todayComments: 0
@@ -189,6 +340,7 @@ const stats = reactive({
 
 const users = ref([])
 const dreams = ref([])
+const dreamRooms = ref([])
 
 const userFilter = reactive({
   keyword: '',
@@ -196,6 +348,11 @@ const userFilter = reactive({
   status: null,
   sortBy: 'id',
   sortOrder: 'asc'
+})
+
+const dreamRoomFilter = reactive({
+  keyword: '',
+  status: null
 })
 
 const userPage = reactive({
@@ -210,7 +367,44 @@ const dreamPage = reactive({
   total: 0
 })
 
+const dreamRoomPage = reactive({
+  pageNum: 1,
+  pageSize: 20,
+  total: 0
+})
+
+const banDialog = reactive({
+  visible: false,
+  room: null,
+  reason: ''
+})
+
+const detailDialog = reactive({
+  visible: false,
+  room: null
+})
+
 const isAdminRole = (role) => String(role || '').toUpperCase() === 'ADMIN'
+
+const dreamRoomStatusText = (status) => {
+  const map = {
+    0: '异常',
+    1: '首次进入',
+    2: '正常聊天',
+    3: '已封禁'
+  }
+  return map[status] || '未知'
+}
+
+const dreamRoomStatusType = (status) => {
+  const map = {
+    0: 'info',
+    1: 'warning',
+    2: 'success',
+    3: 'danger'
+  }
+  return map[status] || 'info'
+}
 
 const fetchStats = async () => {
   const res = await adminApi.getStats()
@@ -242,9 +436,26 @@ const fetchDreams = async () => {
   dreamPage.total = res.data?.total || 0
 }
 
+const fetchDreamRooms = async () => {
+  const res = await adminApi.getDreamRooms({
+    pageNum: dreamRoomPage.pageNum,
+    pageSize: dreamRoomPage.pageSize,
+    keyword: dreamRoomFilter.keyword || undefined,
+    status: dreamRoomFilter.status
+  })
+
+  dreamRooms.value = res.data?.records || []
+  dreamRoomPage.total = res.data?.total || 0
+}
+
 const reloadUsers = async () => {
   userPage.pageNum = 1
   await fetchUsers()
+}
+
+const reloadDreamRooms = async () => {
+  dreamRoomPage.pageNum = 1
+  await fetchDreamRooms()
 }
 
 const changeRole = async (user) => {
@@ -326,10 +537,52 @@ const batchDeleteDreams = async () => {
   await fetchStats()
 }
 
+const openDreamRoomDetail = (room) => {
+  detailDialog.room = room
+  detailDialog.visible = true
+}
+
+const openBanDialog = (room) => {
+  banDialog.room = room
+  banDialog.reason = room.bannedReason || ''
+  banDialog.visible = true
+}
+
+const submitBanDreamRoom = async () => {
+  if (!banDialog.room) return
+  if (!banDialog.reason.trim()) {
+    ElMessage.warning('请输入封禁原因')
+    return
+  }
+
+  await adminApi.banDreamRoom(banDialog.room.dreamRoomId, banDialog.reason.trim())
+  banDialog.visible = false
+  ElMessage.success('心理辅导室已封禁')
+  await fetchDreamRooms()
+  await fetchStats()
+}
+
+const unbanDreamRoom = async (room) => {
+  await ElMessageBox.confirm(
+    `确认解禁心理辅导室 ${room.dreamRoomId}（用户：${room.username || '-'}）？`,
+    '提示',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  )
+
+  await adminApi.unbanDreamRoom(room.dreamRoomId)
+  ElMessage.success('心理辅导室已解禁')
+  await fetchDreamRooms()
+  await fetchStats()
+}
+
 onMounted(async () => {
   if (!userStore.isAdmin) return
   try {
-    await Promise.all([fetchStats(), fetchUsers(), fetchDreams()])
+    await Promise.all([fetchStats(), fetchUsers(), fetchDreams(), fetchDreamRooms()])
   } catch (error) {
     ElMessage.error(error.message || '管理员数据加载失败')
   }
@@ -383,5 +636,210 @@ onMounted(async () => {
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 12px;
+}
+
+.dialog-tip {
+  margin-bottom: 12px;
+  color: #c7d3eb;
+}
+
+.dream-admin-table :deep(.el-table__cell),
+.dream-room-table :deep(.el-table__cell) {
+  vertical-align: middle;
+}
+
+.dream-room-table :deep(.el-table__body-wrapper),
+.dream-room-table :deep(.el-scrollbar__wrap),
+.dream-admin-table :deep(.el-table__body-wrapper),
+.dream-admin-table :deep(.el-scrollbar__wrap) {
+  overflow-x: hidden !important;
+}
+
+.meta-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.meta-primary {
+  color: #f5f8ff;
+  font-weight: 600;
+  line-height: 1.35;
+  min-width: 0;
+}
+
+.meta-secondary {
+  color: #8ea3c0;
+  font-size: 12px;
+  line-height: 1.35;
+  min-width: 0;
+}
+
+.ellipsis-one {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stats-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #d6e2f4;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.status-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.status-subtext {
+  color: #90a4c3;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.table-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.table-actions :deep(.el-button) {
+  margin-left: 0;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+}
+
+.detail-item {
+  min-width: 0;
+}
+
+.detail-item-full {
+  grid-column: 1 / -1;
+}
+
+.detail-label {
+  margin-bottom: 6px;
+  color: #8ea3c0;
+  font-size: 12px;
+}
+
+.detail-value {
+  color: #f3f7ff;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.detail-pre {
+  white-space: pre-wrap;
+}
+
+.admin-dashboard :deep(.el-button) {
+  border-radius: 10px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: none;
+}
+
+.admin-dashboard :deep(.el-button:not(.is-disabled)) {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(148, 163, 184, 0.12);
+  color: #dbe5f4;
+}
+
+.admin-dashboard :deep(.el-button:not(.is-disabled):hover) {
+  border-color: rgba(148, 163, 184, 0.4);
+  background: rgba(148, 163, 184, 0.2);
+  color: #f4f7fb;
+}
+
+.admin-dashboard :deep(.el-button--primary:not(.is-disabled)) {
+  border-color: rgba(96, 165, 250, 0.28);
+  background: rgba(59, 130, 246, 0.16);
+  color: #d8e9ff;
+}
+
+.admin-dashboard :deep(.el-button--primary:not(.is-disabled):hover) {
+  border-color: rgba(96, 165, 250, 0.42);
+  background: rgba(59, 130, 246, 0.24);
+  color: #eff6ff;
+}
+
+.admin-dashboard :deep(.el-button--success:not(.is-disabled)) {
+  border-color: rgba(74, 222, 128, 0.24);
+  background: rgba(34, 197, 94, 0.14);
+  color: #d7fbe4;
+}
+
+.admin-dashboard :deep(.el-button--success:not(.is-disabled):hover) {
+  border-color: rgba(74, 222, 128, 0.36);
+  background: rgba(34, 197, 94, 0.22);
+  color: #effdf4;
+}
+
+.admin-dashboard :deep(.el-button--danger:not(.is-disabled)) {
+  border-color: rgba(248, 113, 113, 0.24);
+  background: rgba(239, 68, 68, 0.14);
+  color: #ffe0e0;
+}
+
+.admin-dashboard :deep(.el-button--danger:not(.is-disabled):hover) {
+  border-color: rgba(248, 113, 113, 0.36);
+  background: rgba(239, 68, 68, 0.22);
+  color: #fff1f1;
+}
+
+.admin-dashboard :deep(.el-button.is-disabled) {
+  border-color: rgba(100, 116, 139, 0.18);
+  background: rgba(100, 116, 139, 0.08);
+  color: rgba(203, 213, 225, 0.45);
+}
+
+.admin-dashboard :deep(.el-tag) {
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.admin-dashboard :deep(.el-tag--primary) {
+  background: rgba(59, 130, 246, 0.14);
+  border-color: rgba(96, 165, 250, 0.22);
+  color: #d9eaff;
+}
+
+.admin-dashboard :deep(.el-tag--success) {
+  background: rgba(34, 197, 94, 0.14);
+  border-color: rgba(74, 222, 128, 0.2);
+  color: #d8f8e3;
+}
+
+.admin-dashboard :deep(.el-tag--danger) {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(248, 113, 113, 0.2);
+  color: #ffd9d9;
+}
+
+.admin-dashboard :deep(.el-tag--warning) {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(251, 191, 36, 0.2);
+  color: #ffe8bf;
+}
+
+.admin-dashboard :deep(.el-tag--info) {
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.18);
+  color: #d7deea;
 }
 </style>

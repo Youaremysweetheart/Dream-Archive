@@ -5,6 +5,7 @@ import org.apache.ibatis.annotations.*;
 
 import java.util.List;
 
+/** 梦境帖子与关联展示字段（用户、分类、评论数）的 MyBatis 映射。 */
 @Mapper
 public interface DreamMapper {
 

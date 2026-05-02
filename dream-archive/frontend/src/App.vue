@@ -27,7 +27,7 @@ const isImmersive = computed(() => {
   --bg-main: #111820;
   --bg-panel: rgba(22, 28, 40, 0.86);
   --text-main: #eaf1ff;
-  --text-muted: #97a4bd;
+  --text-muted: #b8c6df;
   --line-soft: rgba(255, 255, 255, 0.1);
   --accent-cyan: #00e5ff;
   --accent-blue: #2f6bff;
@@ -121,6 +121,12 @@ select {
   background: rgba(6, 10, 18, 0.85) !important;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12) !important;
   color: #eaf1ff !important;
+}
+
+.el-input__inner::placeholder,
+.el-textarea__inner::placeholder {
+  color: #aebddb !important;
+  opacity: 1 !important;
 }
 
 .el-select__wrapper {
@@ -235,11 +241,29 @@ select {
 
 .el-alert {
   border-color: rgba(255, 255, 255, 0.12) !important;
+  background: linear-gradient(180deg, rgba(29, 37, 58, 0.96), rgba(23, 29, 46, 0.96)) !important;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.24) !important;
 }
 
 .el-alert__title,
 .el-alert__description {
-  color: #eaf1ff !important;
+  color: #f4f8ff !important;
+  font-weight: 600 !important;
+}
+
+.el-alert--error {
+  border-color: rgba(255, 140, 166, 0.38) !important;
+  background: linear-gradient(180deg, rgba(67, 29, 42, 0.96), rgba(44, 21, 32, 0.96)) !important;
+}
+
+.el-alert--warning {
+  border-color: rgba(255, 203, 107, 0.34) !important;
+  background: linear-gradient(180deg, rgba(62, 47, 18, 0.96), rgba(43, 33, 12, 0.96)) !important;
+}
+
+.el-alert--info {
+  border-color: rgba(120, 178, 255, 0.3) !important;
+  background: linear-gradient(180deg, rgba(25, 38, 64, 0.96), rgba(19, 30, 50, 0.96)) !important;
 }
 
 .el-tag,

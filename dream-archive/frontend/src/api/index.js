@@ -100,6 +100,9 @@ export const adminApi = {
   getDreams(params = {}) {
     return request.get('/admin/dreams', { params })
   },
+  getDreamRooms(params = {}) {
+    return request.get('/admin/dream-rooms', { params })
+  },
   deleteDream(id) {
     return request.delete(`/admin/dream/${id}`)
   },
@@ -112,6 +115,12 @@ export const adminApi = {
   updateUserStatus(id, status) {
     return request.put(`/admin/user/${id}/status`, { status })
   },
+  banDreamRoom(dreamRoomId, reason) {
+    return request.put(`/admin/dream-room/${dreamRoomId}/ban`, { reason })
+  },
+  unbanDreamRoom(dreamRoomId) {
+    return request.put(`/admin/dream-room/${dreamRoomId}/unban`)
+  },
   batchDeleteDreams(ids) {
     return request.post('/admin/dreams/batch-delete', { ids })
   }
@@ -120,6 +129,9 @@ export const adminApi = {
 export const dreamRoomApi = {
   enterRoom(data = {}) {
     return request.post('/dream-room/enter', data)
+  },
+  enterRoomByPost(data = {}) {
+    return request.post('/dream-room/enter-by-post', data)
   },
   sendMessage(data) {
     return request.post('/dream-room/send', data)

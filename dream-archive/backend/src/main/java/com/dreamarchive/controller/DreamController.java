@@ -30,6 +30,9 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * 梦境帖子 REST：公开列表、详情、用户列表、增删改、点赞、情感分析入口及图片上传。
+ */
 @RestController
 @RequestMapping("/dream")
 @CrossOrigin
@@ -61,7 +64,7 @@ public class DreamController {
             return Result.success(result);
         } catch (Exception e) {
             e.printStackTrace();
-            return Result.error("Failed to load public dreams: " + e.getMessage());
+            return Result.error("加载公开梦境列表失败：" + e.getMessage());
         }
     }
 
@@ -71,7 +74,7 @@ public class DreamController {
             return Result.success(dreamService.getHotDreams(limit));
         } catch (Exception e) {
             e.printStackTrace();
-            return Result.error("Failed to load hot dreams: " + e.getMessage());
+            return Result.error("加载热门梦境失败：" + e.getMessage());
         }
     }
 
@@ -81,12 +84,12 @@ public class DreamController {
             Long userId = getCurrentUserId(request);
             Dream dream = dreamService.getDreamById(id, userId);
             if (dream == null) {
-                return Result.error("Dream does not exist");
+                return Result.error("梦境不存在");
             }
             return Result.success(dream);
         } catch (Exception e) {
             e.printStackTrace();
-            return Result.error("Failed to load dream detail: " + e.getMessage());
+            return Result.error("加载梦境详情失败：" + e.getMessage());
         }
     }
 
@@ -99,7 +102,7 @@ public class DreamController {
             return Result.success(dreamService.getUserDreams(userId, pageNum, pageSize));
         } catch (Exception e) {
             e.printStackTrace();
-            return Result.error("Failed to load user dreams: " + e.getMessage());
+            return Result.error("加载用户梦境列表失败：" + e.getMessage());
         }
     }
 
@@ -108,13 +111,13 @@ public class DreamController {
         try {
             Long userId = getCurrentUserId(request);
             if (userId == null) {
-                return Result.error(401, "Unauthorized");
+                return Result.error(401, "未登录或登录已过期");
             }
             dream.setUserId(userId);
-            return Result.success("Create success", dreamService.createDream(dream));
+            return Result.success("创建成功", dreamService.createDream(dream));
         } catch (Exception e) {
             e.printStackTrace();
-            return Result.error("Create failed: " + e.getMessage());
+            return Result.error("创建失败：" + e.getMessage());
         }
     }
 
@@ -123,22 +126,22 @@ public class DreamController {
         try {
             Long userId = getCurrentUserId(request);
             if (userId == null) {
-                return Result.error(401, "Unauthorized");
+                return Result.error(401, "未登录或登录已过期");
             }
             Dream existing = dreamMapper.findById(id);
             if (existing == null) {
-                return Result.error("Dream does not exist");
+                return Result.error("梦境不存在");
             }
             if (!isAdmin(request) && !userId.equals(existing.getUserId())) {
-                return Result.error(403, "Permission denied");
+                return Result.error(403, "无权限操作");
             }
             dream.setId(id);
             dream.setUserId(existing.getUserId());
             boolean success = dreamService.updateDream(dream);
-            return success ? Result.success("Update success", null) : Result.error("Update failed");
+            return success ? Result.success("更新成功", null) : Result.error("更新失败");
         } catch (Exception e) {
             e.printStackTrace();
-            return Result.error("Update failed: " + e.getMessage());
+            return Result.error("更新失败：" + e.getMessage());
         }
     }
 
@@ -147,13 +150,13 @@ public class DreamController {
         try {
             Long userId = getCurrentUserId(request);
             if (userId == null) {
-                return Result.error(401, "Unauthorized");
+                return Result.error(401, "未登录或登录已过期");
             }
             boolean success = dreamService.deleteDream(id, userId);
-            return success ? Result.success("Delete success", null) : Result.error("Delete failed");
+            return success ? Result.success("删除成功", null) : Result.error("删除失败");
         } catch (Exception e) {
             e.printStackTrace();
-            return Result.error("Delete failed: " + e.getMessage());
+            return Result.error("删除失败：" + e.getMessage());
         }
     }
 
@@ -162,13 +165,13 @@ public class DreamController {
         try {
             Long userId = getCurrentUserId(request);
             if (userId == null) {
-                return Result.error(401, "Unauthorized");
+                return Result.error(401, "未登录或登录已过期");
             }
             boolean isLiked = dreamService.toggleLike(id, userId);
-            return Result.success(isLiked ? "Like success" : "Unlike success", isLiked);
+            return Result.success(isLiked ? "点赞成功" : "已取消点赞", isLiked);
         } catch (Exception e) {
             e.printStackTrace();
-            return Result.error("Action failed: " + e.getMessage());
+            return Result.error("操作失败：" + e.getMessage());
         }
     }
 
@@ -177,19 +180,19 @@ public class DreamController {
         try {
             Long userId = getCurrentUserId(request);
             if (userId == null) {
-                return Result.error(401, "Unauthorized");
+                return Result.error(401, "未登录或登录已过期");
             }
             Dream dream = dreamMapper.findById(id);
             if (dream == null) {
-                return Result.error("Dream does not exist");
+                return Result.error("梦境不存在");
             }
             if (!isAdmin(request) && !userId.equals(dream.getUserId())) {
-                return Result.error(403, "Permission denied");
+                return Result.error(403, "无权限操作");
             }
 
             boolean ok = dreamService.analyzeDream(id);
             if (!ok) {
-                return Result.error("Analyze failed");
+                return Result.error("分析失败");
             }
 
             Dream refreshed = dreamMapper.findById(id);
@@ -200,10 +203,10 @@ public class DreamController {
                     room != null ? room.getDreamRoomStatus() : 0,
                     room != null
             );
-            return Result.success("Analyze success", response);
+            return Result.success("分析成功", response);
         } catch (Exception e) {
             e.printStackTrace();
-            return Result.error("Analyze failed: " + e.getMessage());
+            return Result.error("分析失败：" + e.getMessage());
         }
     }
 
@@ -211,10 +214,10 @@ public class DreamController {
     public Result<Integer> analyzeDreamBatch(@RequestParam(defaultValue = "50") int limit) {
         try {
             int done = dreamService.analyzeDreamsBatch(limit);
-            return Result.success("Batch analyze success", done);
+            return Result.success("批量分析完成", done);
         } catch (Exception e) {
             e.printStackTrace();
-            return Result.error("Batch analyze failed: " + e.getMessage());
+            return Result.error("批量分析失败：" + e.getMessage());
         }
     }
 
@@ -222,7 +225,7 @@ public class DreamController {
     public Result<String> uploadDreamImage(@RequestParam("file") MultipartFile file) {
         try {
             if (file.isEmpty()) {
-                return Result.error("File is empty");
+                return Result.error("上传文件不能为空");
             }
 
             String uploadDir = buildUploadDir("dreams");
@@ -241,10 +244,10 @@ public class DreamController {
             Files.copy(file.getInputStream(), path);
 
             String imageUrl = "/uploads/dreams/" + filename;
-            return Result.success("Upload success", imageUrl);
+            return Result.success("上传成功", imageUrl);
         } catch (IOException e) {
             e.printStackTrace();
-            return Result.error("Upload failed: " + e.getMessage());
+            return Result.error("上传失败：" + e.getMessage());
         }
     }
 

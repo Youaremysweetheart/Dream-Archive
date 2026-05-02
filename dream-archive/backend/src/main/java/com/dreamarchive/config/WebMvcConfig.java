@@ -12,6 +12,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Web MVC：注册 JWT 拦截器（登录接口等除外）、静态上传目录映射。
+ */
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
 
@@ -46,7 +49,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
     private List<String> buildUploadLocations() {
         Set<String> locations = new LinkedHashSet<>();
         locations.add(toFileLocation(uploadPath));
-        // Backward-compatible fallbacks for legacy relative working directories.
+        // 兼容历史工作目录：相对路径下 uploads 可能位于不同层级。
         locations.add(toFileLocation("uploads/"));
         locations.add(toFileLocation("../uploads/"));
         locations.add(toFileLocation("../../uploads/"));

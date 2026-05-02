@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/** 进入房间响应：房间标识、状态、提示文案、是否允许发送消息。 */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -24,4 +25,7 @@ public class DreamRoomEnterResponse {
 
     @JsonProperty("can_chat")
     private Boolean canChat;
+
+    @JsonProperty("has_pending_reply")
+    private Boolean hasPendingReply;
 }

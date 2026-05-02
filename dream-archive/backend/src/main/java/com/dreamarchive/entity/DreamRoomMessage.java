@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
+/** 房间内一条聊天消息（用户提问或助手回复等），含角色与违规标记。 */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

@@ -1,6 +1,6 @@
 ﻿<template>
   <div class="counsel-page">
-    <section class="intro-shell">
+    <section class="intro-shell" :class="{ 'is-entering': enteringSystem }">
       <article class="intro-main">
         <p class="eyebrow">今日梦境 · 专属辅导空间</p>
         <h1>心理辅导室</h1>
@@ -11,7 +11,7 @@
 
         <div class="actions-row">
           <el-button class="enter-btn" type="primary" :loading="entering" @click="handleEnter">进入心理辅导室</el-button>
-          <el-button class="record-btn" round @click="goCreateDream">先去记录梦境</el-button>
+          <el-button class="record-btn" round :disabled="enteringSystem" @click="goCreateDream">先去记录梦境</el-button>
         </div>
 
         <div class="feature-grid">
@@ -56,31 +56,44 @@
             <span>当前状态</span>
             <el-tag :type="tagType" effect="dark" round>{{ statusText }}</el-tag>
           </div>
-          <p class="status-desc">{{ tip || '准备就绪，点击下方按钮即可开始。' }}</p>
+          <p class="status-desc">{{ displayTip || '准备就绪，点击下方按钮即可开始。' }}</p>
+          <p v-if="violationDetail" class="violation-detail">{{ violationDetail }}</p>
         </div>
 
         <el-alert
-          v-if="tip"
-          :title="tip"
+          v-if="displayTip"
+          :title="displayTip"
           :type="alertType"
           :closable="false"
           class="tip"
         />
       </aside>
     </section>
+
+    <div class="entry-overlay" :class="{ active: enteringSystem }">
+      <div class="entry-orb"></div>
+      <div class="entry-copy">
+        <p class="entry-brand-main">SOMNIUM</p>
+        <p class="entry-brand-sub">DREAM ARCHIVE</p>
+        <p class="entry-caption">正在进入 Somnium Dream Archive · Mental Assistant</p>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { dreamRoomApi } from '@/api'
 import { ElMessage } from 'element-plus'
 
+const route = useRoute()
 const router = useRouter()
 const entering = ref(false)
+const enteringSystem = ref(false)
 const roomStatus = ref(null)
 const tip = ref('')
+const violationReason = ref('')
 
 const alertType = computed(() => {
   if (roomStatus.value === 3) return 'error'
@@ -103,7 +116,22 @@ const tagType = computed(() => {
   return 'info'
 })
 
+const displayTip = computed(() => {
+  if (violationReason.value) {
+    return violationReason.value
+  }
+  return tip.value
+})
+
+const violationDetail = computed(() => {
+  if (route.query.source === 'dify_violation' && roomStatus.value === 3) {
+    return '本次对话被系统识别为触发了内容安全保护，心理辅导室已暂时停止当前房间服务。'
+  }
+  return ''
+})
+
 const handleEnter = async () => {
+  if (enteringSystem.value) return
   entering.value = true
   try {
     const res = await dreamRoomApi.enterRoom({})
@@ -122,6 +150,8 @@ const handleEnter = async () => {
       return
     }
 
+    enteringSystem.value = true
+    await new Promise((resolve) => setTimeout(resolve, 860))
     router.push(`/dream-room/chat/${dreamPostId}`)
   } catch (error) {
     ElMessage.error(error.message || '进入辅导室失败，请稍后重试')
@@ -133,10 +163,22 @@ const handleEnter = async () => {
 const goCreateDream = () => {
   router.push('/dream/create')
 }
+
+onMounted(() => {
+  if (route.query.violation === '1') {
+    roomStatus.value = 3
+    tip.value = typeof route.query.tip === 'string' ? route.query.tip : '检测到违规内容，请离开房间。'
+    violationReason.value = route.query.source === 'dify_violation'
+      ? `${tip.value} 原因：Dify 工作流返回 is_violation=true，当前房间触发保护性停用。`
+      : tip.value
+    ElMessage.warning(tip.value)
+  }
+})
 </script>
 
 <style scoped>
 .counsel-page {
+  position: relative;
   max-width: 1180px;
   margin: 0 auto;
   padding: 26px 0 34px;
@@ -158,6 +200,14 @@ const goCreateDream = () => {
   display: grid;
   grid-template-columns: 1.3fr 0.7fr;
   overflow: hidden;
+  transition: transform 0.58s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.58s ease, filter 0.58s ease;
+}
+
+.intro-shell.is-entering {
+  pointer-events: none;
+  transform: scale(0.96);
+  opacity: 0.14;
+  filter: blur(10px);
 }
 
 .intro-main {
@@ -185,7 +235,7 @@ const goCreateDream = () => {
 
 .lead {
   margin: 0;
-  color: #ccd9ef;
+  color: #e0e9f9;
   font-size: 16px;
   line-height: 1.9;
   max-width: 720px;
@@ -247,7 +297,7 @@ const goCreateDream = () => {
 
 .feature-card p {
   margin: 7px 0 0;
-  color: #becee8;
+  color: #d8e4f8;
   font-size: 13px;
   line-height: 1.75;
 }
@@ -316,13 +366,89 @@ const goCreateDream = () => {
 
 .status-desc {
   margin: 9px 0 0;
-  color: #c2d2ec;
-  font-size: 12px;
-  line-height: 1.75;
+  color: #e6eefc;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.violation-detail {
+  margin: 10px 0 0;
+  color: #ffd2d8;
+  font-size: 13px;
+  line-height: 1.8;
 }
 
 .tip {
   margin-top: 12px;
+}
+
+.entry-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-content: center;
+  gap: 22px;
+  background: radial-gradient(circle at 50% 50%, rgba(33, 52, 129, 0.32), rgba(5, 7, 22, 0.92));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.45s ease;
+}
+
+.entry-overlay.active {
+  opacity: 1;
+}
+
+.entry-orb {
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  border: 1px solid rgba(220, 230, 255, 0.38);
+  box-shadow: 0 0 0 24px rgba(113, 136, 224, 0.1), 0 0 120px rgba(100, 130, 248, 0.48);
+  animation: orbPulse 1.05s ease-in-out infinite;
+}
+
+.entry-copy {
+  text-align: center;
+}
+
+.entry-brand-main {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', 'Source Han Serif SC', serif;
+  font-size: clamp(46px, 6vw, 84px);
+  line-height: 0.95;
+  letter-spacing: 4px;
+  color: rgba(232, 238, 255, 0.2);
+  text-shadow: 0 0 28px rgba(132, 154, 255, 0.14);
+}
+
+.entry-brand-sub {
+  margin: 6px 0 0;
+  font-family: Georgia, 'Times New Roman', 'Source Han Serif SC', serif;
+  font-size: clamp(24px, 3vw, 44px);
+  line-height: 1;
+  letter-spacing: 3px;
+  color: rgba(218, 226, 248, 0.16);
+}
+
+.entry-caption {
+  margin: 18px 0 0;
+  text-align: center;
+  color: #eef4ff;
+  letter-spacing: 1.2px;
+  font-size: 14px;
+}
+
+@keyframes orbPulse {
+  0%,
+  100% {
+    transform: scale(0.94);
+    opacity: 0.82;
+  }
+  50% {
+    transform: scale(1.03);
+    opacity: 1;
+  }
 }
 
 @media (max-width: 980px) {

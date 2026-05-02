@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
+/** 调度到 Dify 的异步任务一行记录：入参快照、结果、重试与错误信息。 */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

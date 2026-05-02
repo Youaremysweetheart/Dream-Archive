@@ -6,6 +6,7 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/** 房间历史列表中单条：梦境信息与关联房间状态。 */
 @Data
 public class DreamRoomHistoryItem {
 

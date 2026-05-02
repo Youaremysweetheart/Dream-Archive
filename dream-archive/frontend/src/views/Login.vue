@@ -172,7 +172,11 @@
 
     <div class="entry-overlay" :class="{ active: enteringSystem }">
       <div class="entry-orb"></div>
-      <p>正在进入 Somnium Dream Archive...</p>
+      <div class="entry-copy">
+        <p class="entry-brand-main">SOMNIUM</p>
+        <p class="entry-brand-sub">DREAM ARCHIVE</p>
+        <p class="entry-caption">正在进入 Somnium Dream Archive...</p>
+      </div>
     </div>
   </div>
 </template>
@@ -604,7 +608,7 @@ const handleRegister = async () => {
   z-index: 30;
   display: grid;
   place-content: center;
-  gap: 18px;
+  gap: 22px;
   background: radial-gradient(circle at 50% 50%, rgba(33, 52, 129, 0.32), rgba(5, 7, 22, 0.92));
   opacity: 0;
   pointer-events: none;
@@ -616,18 +620,42 @@ const handleRegister = async () => {
 }
 
 .entry-orb {
-  width: 130px;
-  height: 130px;
+  width: 190px;
+  height: 190px;
   border-radius: 50%;
-  border: 1px solid rgba(220, 230, 255, 0.32);
-  box-shadow: 0 0 0 14px rgba(113, 136, 224, 0.08), 0 0 70px rgba(100, 130, 248, 0.4);
+  border: 1px solid rgba(220, 230, 255, 0.36);
+  box-shadow: 0 0 0 22px rgba(113, 136, 224, 0.1), 0 0 110px rgba(100, 130, 248, 0.46);
   animation: orbPulse 1.05s ease-in-out infinite;
 }
 
-.entry-overlay p {
+.entry-copy {
+  text-align: center;
+}
+
+.entry-brand-main {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', 'Source Han Serif SC', serif;
+  font-size: clamp(46px, 6vw, 84px);
+  line-height: 0.95;
+  letter-spacing: 4px;
+  color: rgba(232, 238, 255, 0.2);
+  text-shadow: 0 0 28px rgba(132, 154, 255, 0.14);
+}
+
+.entry-brand-sub {
+  margin: 6px 0 0;
+  font-family: Georgia, 'Times New Roman', 'Source Han Serif SC', serif;
+  font-size: clamp(24px, 3vw, 44px);
+  line-height: 1;
+  letter-spacing: 3px;
+  color: rgba(218, 226, 248, 0.16);
+}
+
+.entry-caption {
+  margin: 18px 0 0;
   text-align: center;
   color: rgba(226, 235, 255, 0.88);
-  letter-spacing: 0.8px;
+  letter-spacing: 1.2px;
   font-size: 14px;
 }
 

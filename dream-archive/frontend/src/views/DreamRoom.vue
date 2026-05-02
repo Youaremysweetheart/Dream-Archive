@@ -1,10 +1,13 @@
 ﻿<template>
   <div class="kiki-room-page">
     <aside class="history-pane">
-      <div class="brand-block">
+      <button class="brand-block" type="button" @click="router.push('/')">
         <img class="brand-logo" :src="somniumLogo" alt="Somnium" />
-        <p class="brand-name">Somnium Dream Archive · Mental Assistant</p>
-      </div>
+        <div class="brand-copy">
+          <p class="brand-name">Somnium Dream Archive</p>
+          <p class="brand-subtitle">Mental Assistant</p>
+        </div>
+      </button>
 
       <div class="history-list-wrap">
         <p class="history-heading">梦境历史</p>
@@ -31,8 +34,8 @@
       </div>
 
       <div class="history-footer">
-        <button class="side-action" type="button" @click="router.push('/dream/create')">记录梦境</button>
-        <button class="side-action danger" type="button" @click="router.push('/')">返回首页</button>
+        <button class="side-action primary" type="button" @click="router.push('/dream/create')">记录梦境</button>
+        <button class="side-action secondary" type="button" @click="router.push('/dream-room')">返回</button>
       </div>
     </aside>
 
@@ -89,26 +92,70 @@
           </div>
         </div>
 
+        <div v-if="showThinkingBubble" class="msg-row assistant opening-row">
+          <div class="msg-side-icon thinking-icon">
+            <span class="thinking-ring"></span>
+          </div>
+          <div class="msg-bubble opening thinking">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            KiKi 正在思考你的这条消息...
+          </div>
+        </div>
+
         <el-empty
-          v-if="visibleMessages.length === 0 && !showOpeningBubble"
+          v-if="visibleMessages.length === 0 && !showOpeningBubble && !showThinkingBubble"
           :description="searchKeyword ? '未找到匹配内容' : '还没有消息，试着和 KiKi 打个招呼吧'"
         />
       </main>
 
       <footer class="composer-wrap">
-        <div class="composer">
-          <div class="composer-mark">✦</div>
-          <el-input
-            v-model="inputText"
-            type="textarea"
-            :autosize="{ minRows: 1, maxRows: 4 }"
-            maxlength="800"
-            :disabled="!canSend"
-            :placeholder="placeholderText"
-            @keydown.enter.ctrl.prevent="sendMessage"
-          />
-          <button class="send-btn" type="button" :disabled="!canSend || sending" @click="sendMessage">
-            <el-icon><Promotion /></el-icon>
+        <div ref="composerShellRef" class="composer-shell">
+          <div v-if="emojiPanelVisible" class="emoji-panel">
+            <button
+              v-for="emoji in emojiOptions"
+              :key="emoji"
+              type="button"
+              class="emoji-item"
+              @click="appendEmoji(emoji)"
+            >
+              {{ emoji }}
+            </button>
+          </div>
+
+          <div class="composer">
+            <div class="composer-left-tools">
+              <button
+                class="emoji-trigger"
+                type="button"
+                :disabled="!canSend"
+                aria-label="打开表情面板"
+                @click="toggleEmojiPanel"
+              >
+                <svg class="emoji-trigger-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="8.5"></circle>
+                  <circle cx="9" cy="10" r="1.1" fill="currentColor" stroke="none"></circle>
+                  <circle cx="15" cy="10" r="1.1" fill="currentColor" stroke="none"></circle>
+                  <path d="M8.4 13.4C9.15 14.55 10.4 15.2 12 15.2C13.6 15.2 14.85 14.55 15.6 13.4"></path>
+                </svg>
+              </button>
+            </div>
+
+            <el-input
+              ref="composerInputRef"
+              v-model="inputText"
+              type="textarea"
+              :autosize="{ minRows: 1, maxRows: 4 }"
+              maxlength="800"
+              :disabled="!canSend"
+              :placeholder="placeholderText"
+              @keydown.enter.ctrl.prevent="sendMessage"
+            />
+          </div>
+
+          <button class="send-btn outer-send" type="button" :disabled="!canSend || sending" @click="sendMessage">
+            <el-icon><ArrowUpBold /></el-icon>
           </button>
         </div>
       </footer>
@@ -131,8 +178,8 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { MoreFilled, Promotion, Search } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowUpBold, MoreFilled, Search } from '@element-plus/icons-vue'
 import somniumLogo from '@/assets/somnium-logo.svg'
 import { dreamApi, dreamRoomApi } from '@/api'
 import { useUserStore } from '@/stores/user'
@@ -148,9 +195,14 @@ const tip = ref('')
 const messages = ref([])
 const inputText = ref('')
 const sending = ref(false)
+const hasPendingReply = ref(false)
 const messageListRef = ref(null)
+const composerShellRef = ref(null)
+const composerInputRef = ref(null)
 const pollTimer = ref(null)
+const pollEpoch = ref(0)
 const aiApiError = ref(false)
+const violationDialogShownKey = ref('')
 
 const historyLoading = ref(false)
 const historyPosts = ref([])
@@ -158,14 +210,19 @@ const historyPosts = ref([])
 const searchVisible = ref(false)
 const searchKeyword = ref('')
 const searchInputRef = ref(null)
+const emojiPanelVisible = ref(false)
 
 const detailVisible = ref(false)
 
-const canSend = computed(() => roomStatus.value === 2 && !aiApiError.value)
+const emojiOptions = ['🙂', '😊', '🥺', '😌', '😴', '😢', '😭', '😔', '😕', '😳', '😮', '😣', '😖', '😡', '🤍', '💙', '✨', '🌙', '🌧️', '🌊', '🫧', '🕯️', '🫂', '💭']
+
+const canSend = computed(() => roomStatus.value === 2 && !aiApiError.value && !hasPendingReply.value)
 const showOpeningBubble = computed(() => roomStatus.value === 1 && !messages.value.some((msg) => Number(msg.senderId) === 0))
+const showThinkingBubble = computed(() => roomStatus.value === 2 && hasPendingReply.value)
 
 const statusText = computed(() => {
   if (aiApiError.value) return 'ARCHIVE INACTIVE'
+  if (hasPendingReply.value && roomStatus.value === 2) return 'KIKI IS THINKING'
   if (roomStatus.value === 1 || roomStatus.value === 2) return 'ARCHIVE ACTIVE'
   if (roomStatus.value === 3) return 'ARCHIVE DISABLED'
   return 'ARCHIVE INACTIVE'
@@ -173,6 +230,7 @@ const statusText = computed(() => {
 
 const statusClass = computed(() => {
   if (aiApiError.value) return 'inactive'
+  if (hasPendingReply.value && roomStatus.value === 2) return 'thinking'
   if (roomStatus.value === 1 || roomStatus.value === 2) return 'active'
   if (roomStatus.value === 3) return 'disabled'
   return 'inactive'
@@ -181,7 +239,8 @@ const statusClass = computed(() => {
 const placeholderText = computed(() => {
   if (aiApiError.value) return '智能体接口异常，请稍后重试'
   if (roomStatus.value === 3) return '当前辅导室不可用'
-  if (roomStatus.value === 1) return '导师正在生成开场引导...'
+  if (roomStatus.value === 1) return 'KiKi 正在生成开场引导...'
+  if (hasPendingReply.value) return 'KiKi 正在思考，请稍候...'
   if (roomStatus.value === 0) return '你今天还没有发布梦境帖子，请先记录梦境'
   return '描述那个困扰你的梦境细节...（Ctrl + Enter 发送）'
 })
@@ -213,8 +272,59 @@ const scrollToBottom = () => {
   dom.scrollTop = dom.scrollHeight
 }
 
+const shouldPoll = () => roomStatus.value === 1 || hasPendingReply.value
+
+const stopPolling = () => {
+  if (pollTimer.value) {
+    clearTimeout(pollTimer.value)
+    pollTimer.value = null
+  }
+}
+
+const schedulePolling = () => {
+  stopPolling()
+  if (!shouldPoll()) return
+  const currentEpoch = pollEpoch.value
+  pollTimer.value = setTimeout(async () => {
+    if (currentEpoch !== pollEpoch.value) return
+    await poll()
+    if (currentEpoch !== pollEpoch.value) return
+    schedulePolling()
+  }, 3000)
+}
+
+const focusComposer = async () => {
+  await nextTick()
+  composerInputRef.value?.focus?.()
+}
+
+const toggleEmojiPanel = async () => {
+  emojiPanelVisible.value = !emojiPanelVisible.value
+  if (!emojiPanelVisible.value) {
+    await focusComposer()
+  }
+}
+
+const appendEmoji = async (emoji) => {
+  inputText.value = `${inputText.value || ''}${emoji}`
+  emojiPanelVisible.value = false
+  await focusComposer()
+}
+
+const handleDocumentClick = (event) => {
+  if (!emojiPanelVisible.value) return
+  const shell = composerShellRef.value
+  if (!shell) return
+  if (shell.contains(event.target)) return
+  emojiPanelVisible.value = false
+}
+
 const enterRoom = async () => {
-  const res = await dreamRoomApi.enterRoom({ dream_post_id: dreamPostId.value || null })
+  const previousStatus = roomStatus.value
+  const requestBody = { dream_post_id: dreamPostId.value || null }
+  const res = dreamPostId.value > 0
+    ? await dreamRoomApi.enterRoomByPost(requestBody)
+    : await dreamRoomApi.enterRoom(requestBody)
   const resolvedPostId = Number(res.data?.dream_post_id || 0)
   if (resolvedPostId > 0) {
     dreamPostId.value = resolvedPostId
@@ -222,7 +332,31 @@ const enterRoom = async () => {
   roomId.value = res.data?.dream_room_id || ''
   roomStatus.value = Number(res.data?.dream_room_status || 0)
   tip.value = res.data?.tip || ''
+  hasPendingReply.value = Boolean(res.data?.has_pending_reply)
   aiApiError.value = false
+
+  const currentDialogKey = `${roomId.value}_${roomStatus.value}_${tip.value || ''}`
+  if (
+    roomStatus.value === 3 &&
+    tip.value &&
+    (previousStatus !== 3 || violationDialogShownKey.value !== currentDialogKey)
+  ) {
+    violationDialogShownKey.value = currentDialogKey
+    await ElMessageBox.alert(tip.value, '辅导室提示', {
+      confirmButtonText: '我知道了',
+      type: 'warning',
+      customClass: 'dream-room-warning-dialog',
+      autofocus: false
+    })
+    router.push({
+      path: '/dream-room',
+      query: {
+        violation: '1',
+        tip: tip.value,
+        source: 'dify_violation'
+      }
+    })
+  }
 }
 
 const loadMessages = async () => {
@@ -230,7 +364,7 @@ const loadMessages = async () => {
   const res = await dreamRoomApi.getMessages({
     dream_room_id: roomId.value,
     pageNum: 1,
-    pageSize: 200
+    pageSize: 80
   })
   messages.value = res.data?.records || []
   await nextTick()
@@ -261,16 +395,22 @@ const loadHistoryPosts = async () => {
 }
 
 const resetConversation = async () => {
+  pollEpoch.value += 1
+  stopPolling()
   roomId.value = ''
   roomStatus.value = 0
   tip.value = ''
   messages.value = []
   inputText.value = ''
+  hasPendingReply.value = false
+  emojiPanelVisible.value = false
+  violationDialogShownKey.value = ''
   searchKeyword.value = ''
 
   try {
     await enterRoom()
     await loadMessages()
+    schedulePolling()
   } catch (error) {
     aiApiError.value = true
     ElMessage.error(error.message || '连接心理导师失败，请稍后重试')
@@ -278,11 +418,28 @@ const resetConversation = async () => {
 }
 
 const poll = async () => {
+  if (!shouldPoll()) {
+    stopPolling()
+    return
+  }
   try {
+    const previousStatus = roomStatus.value
+    const previousPendingReply = hasPendingReply.value
     await enterRoom()
-    await loadMessages()
+    const finishedWaiting = (previousStatus === 1 && roomStatus.value !== 1)
+      || (previousPendingReply && !hasPendingReply.value)
+      || roomStatus.value === 3
+
+    if (finishedWaiting) {
+      await loadMessages()
+    }
+
+    if (!shouldPoll()) {
+      stopPolling()
+    }
   } catch (error) {
     aiApiError.value = true
+    stopPolling()
   }
 }
 
@@ -306,7 +463,17 @@ const sendMessage = async () => {
       client_msg_id: `cmsg_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`
     })
     inputText.value = ''
-    await loadMessages()
+    hasPendingReply.value = true
+    emojiPanelVisible.value = false
+    messages.value.push({
+      id: `local_${Date.now()}`,
+      senderId: userStore.userId,
+      messageText: text,
+      createTime: new Date().toISOString()
+    })
+    await nextTick()
+    scrollToBottom()
+    schedulePolling()
   } catch (error) {
     ElMessage.error(error.message || '发送失败，请稍后重试')
   } finally {
@@ -341,16 +508,14 @@ watch(
 )
 
 onMounted(async () => {
+  document.addEventListener('click', handleDocumentClick)
   await loadHistoryPosts()
   await resetConversation()
-  pollTimer.value = setInterval(poll, 2500)
 })
 
 onBeforeUnmount(() => {
-  if (pollTimer.value) {
-    clearInterval(pollTimer.value)
-    pollTimer.value = null
-  }
+  document.removeEventListener('click', handleDocumentClick)
+  stopPolling()
 })
 </script>
 
@@ -376,24 +541,61 @@ onBeforeUnmount(() => {
 }
 
 .brand-block {
+  width: 100%;
+  border: none;
+  background: transparent;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 28px 20px 20px;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 24px 18px 18px;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.brand-block:hover {
+  transform: translateY(-1px);
+}
+
+.brand-block:focus-visible {
+  outline: 1px solid rgba(143, 132, 255, 0.45);
+  outline-offset: -1px;
+  border-radius: 16px;
 }
 
 .brand-logo {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   flex-shrink: 0;
+  margin-top: 4px;
+  filter: drop-shadow(0 2px 10px rgba(140, 123, 255, 0.35));
+}
+
+.brand-copy {
+  min-width: 0;
 }
 
 .brand-name {
   margin: 0;
-  color: #eef5ff;
-  font-size: 14px;
-  letter-spacing: 0.4px;
-  line-height: 1.4;
+  font-size: 19px;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: 0.15px;
+  font-family: Georgia, 'Times New Roman', 'Noto Serif SC', serif;
+  background: linear-gradient(92deg, #9af2ff 0%, #8f84ff 45%, #ff6bb1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 0 18px rgba(130, 120, 255, 0.16);
+}
+
+.brand-subtitle {
+  margin: 4px 0 0;
+  color: #d7e2f8;
+  font-size: 12px;
+  line-height: 1.3;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
 }
 
 .history-list-wrap {
@@ -406,13 +608,13 @@ onBeforeUnmount(() => {
 .history-heading {
   margin: 0 8px 12px;
   font-size: 12px;
-  color: rgba(188, 201, 239, 0.7);
+  color: #d4e1f8;
   letter-spacing: 1px;
 }
 
 .history-tip {
   margin: 0 8px;
-  color: rgba(184, 198, 235, 0.72);
+  color: #d9e6fb;
   font-size: 13px;
   line-height: 1.6;
 }
@@ -453,29 +655,51 @@ onBeforeUnmount(() => {
 }
 
 .history-text small {
-  color: rgba(180, 196, 237, 0.72);
+  color: #cddbf4;
   font-size: 12px;
 }
 
 .history-footer {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 14px;
-  display: grid;
-  gap: 8px;
+  padding: 16px 14px 18px;
+  display: flex;
+  gap: 10px;
 }
 
 .side-action {
+  flex: 1;
   border-radius: 10px;
   border: 1px solid rgba(158, 179, 232, 0.3);
   background: rgba(255, 255, 255, 0.03);
   color: #dce8ff;
-  height: 38px;
+  height: 42px;
   cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
 
-.side-action.danger {
-  border-color: rgba(244, 114, 182, 0.38);
-  color: #ffbfd8;
+.side-action:hover {
+  transform: translateY(-1px);
+}
+
+.side-action.primary {
+  border-color: rgba(138, 164, 255, 0.38);
+  background: linear-gradient(180deg, rgba(70, 84, 146, 0.9), rgba(51, 61, 111, 0.95));
+  color: #f2f6ff;
+  box-shadow: 0 10px 22px rgba(32, 44, 101, 0.24);
+}
+
+.side-action.secondary {
+  border-color: rgba(163, 183, 240, 0.26);
+  background: rgba(255, 255, 255, 0.02);
+  color: #d6e3fb;
+}
+
+.side-action.secondary:hover {
+  border-color: rgba(194, 209, 255, 0.38);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .chat-stage {
@@ -531,12 +755,16 @@ onBeforeUnmount(() => {
   color: #7dfaa2;
 }
 
+.mentor-status.thinking {
+  color: #8fb4ff;
+}
+
 .mentor-status.disabled {
   color: #ff8ca6;
 }
 
 .mentor-status.inactive {
-  color: #a3b2cf;
+  color: #c4d3ef;
 }
 
 .status-point {
@@ -570,7 +798,7 @@ onBeforeUnmount(() => {
 }
 
 .search-count {
-  color: #a5b7d8;
+  color: #d0def7;
   font-size: 12px;
 }
 
@@ -608,6 +836,20 @@ onBeforeUnmount(() => {
   color: #c5d4fb;
   font-size: 13px;
   flex-shrink: 0;
+}
+
+.msg-side-icon.thinking-icon {
+  position: relative;
+  color: transparent;
+}
+
+.thinking-ring {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(169, 191, 255, 0.28);
+  border-top-color: #a9bfff;
+  animation: spinRing 0.9s linear infinite;
 }
 
 .msg-bubble {
@@ -654,7 +896,7 @@ onBeforeUnmount(() => {
 
 .msg-time {
   font-size: 12px;
-  color: rgba(172, 188, 227, 0.72);
+  color: #d0ddf6;
   margin: 0 0 16px 40px;
 }
 
@@ -671,6 +913,10 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.msg-bubble.thinking {
+  color: #dfe8ff;
 }
 
 .typing-dot {
@@ -691,51 +937,186 @@ onBeforeUnmount(() => {
 
 .composer-wrap {
   flex-shrink: 0;
-  padding: 14px 24px 16px;
+  padding: 14px 24px 18px;
   background: linear-gradient(180deg, rgba(3, 7, 28, 0) 0%, rgba(3, 7, 28, 0.9) 34%, rgba(3, 7, 28, 0.96) 100%);
 }
 
-.composer {
-  border-radius: 36px;
-  border: 1px solid rgba(178, 196, 237, 0.2);
-  background: linear-gradient(160deg, rgba(31, 36, 68, 0.92), rgba(22, 27, 58, 0.9));
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  padding: 10px 10px 10px 14px;
+.composer-shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
 }
 
-.composer-mark {
-  color: #9cb2f0;
-  margin-bottom: 8px;
+.emoji-panel {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 12px);
+  width: 312px;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(203, 214, 242, 0.14);
+  background: linear-gradient(180deg, rgba(33, 38, 57, 0.98), rgba(26, 31, 48, 0.98));
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34);
+  z-index: 4;
+}
+
+.emoji-item {
+  width: 100%;
+  aspect-ratio: 1;
+  border: none;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #eff4ff;
+  font-size: 20px;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.emoji-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+.composer {
+  border-radius: 999px;
+  border: 1px solid rgba(203, 214, 242, 0.16);
+  background: linear-gradient(180deg, rgba(38, 43, 60, 0.95), rgba(32, 37, 56, 0.94));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 12px 30px rgba(0, 0, 0, 0.22);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 0 12px;
+}
+
+.composer-left-tools,
+.composer-right-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  height: 60px;
+}
+
+.composer-right-tools {
+  display: none;
+}
+
+.emoji-trigger {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: rgba(205, 216, 243, 0.72);
+  cursor: pointer;
+  align-self: center;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.emoji-trigger:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  color: #eff4ff;
+  transform: translateY(-1px);
+}
+
+.emoji-trigger:disabled {
+  cursor: default;
+}
+
+.emoji-trigger-face {
+  display: none;
+}
+
+.emoji-trigger-icon {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.composer :deep(.el-textarea) {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  height: 60px;
+}
+
+.composer :deep(.el-textarea__wrapper) {
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  min-height: 60px !important;
 }
 
 .composer :deep(.el-textarea__inner) {
   background: transparent !important;
   box-shadow: none !important;
   border: none !important;
-  color: #eaf2ff !important;
-  font-size: 15px;
-  line-height: 1.7;
-  padding: 6px 2px;
+  color: #edf4ff !important;
+  font-size: 16px;
+  line-height: 1.45;
+  min-height: 24px !important;
+  padding: 18px 0 16px !important;
+  resize: none !important;
+}
+
+.composer :deep(.el-textarea__inner::placeholder) {
+  color: #b8c7e4 !important;
 }
 
 .send-btn {
-  width: 52px;
-  height: 52px;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
   border-radius: 50%;
-  border: 1px solid rgba(189, 204, 241, 0.28);
-  background: rgba(255, 255, 255, 0.06);
-  color: #e8f1ff;
+  border: none;
+  background: linear-gradient(180deg, #ffd54f 0%, #ffbf0b 100%);
+  color: #1d2030;
   cursor: pointer;
   display: grid;
   place-items: center;
-  font-size: 20px;
+  font-size: 18px;
+  box-shadow:
+    0 10px 22px rgba(255, 191, 11, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+
+.outer-send {
+  align-self: center;
+  margin-top: 0;
+}
+
+.send-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    0 14px 28px rgba(255, 191, 11, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.48);
 }
 
 .send-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+  transform: none;
+  box-shadow:
+    0 8px 18px rgba(255, 191, 11, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
 }
 
 .detail-list {
@@ -753,6 +1134,14 @@ onBeforeUnmount(() => {
   color: #dbe7ff;
 }
 
+.detail-row span {
+  color: #d7e5ff;
+}
+
+.detail-row strong {
+  color: #f4f8ff;
+}
+
 @keyframes dotPulse {
   0%,
   80%,
@@ -763,6 +1152,15 @@ onBeforeUnmount(() => {
   40% {
     transform: scale(1.2);
     opacity: 1;
+  }
+}
+
+@keyframes spinRing {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -781,6 +1179,10 @@ onBeforeUnmount(() => {
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
 
+  .history-footer {
+    flex-direction: column;
+  }
+
   .history-list-wrap {
     max-height: 220px;
   }
@@ -788,5 +1190,30 @@ onBeforeUnmount(() => {
   .msg-row {
     max-width: 92%;
   }
+}
+</style>
+
+<style>
+.dream-room-warning-dialog {
+  border-radius: 20px;
+  background: linear-gradient(180deg, #1b2038 0%, #141a31 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.38);
+}
+
+.dream-room-warning-dialog .el-message-box__title,
+.dream-room-warning-dialog .el-message-box__message {
+  color: #eef4ff;
+}
+
+.dream-room-warning-dialog .el-message-box__headerbtn .el-message-box__close {
+  color: rgba(219, 231, 255, 0.72);
+}
+
+.dream-room-warning-dialog .el-button--primary {
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffd54f 0%, #ffbf0b 100%);
+  color: #1d2030;
 }
 </style>

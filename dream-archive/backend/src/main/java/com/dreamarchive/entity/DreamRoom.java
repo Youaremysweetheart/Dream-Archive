@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
+/** 疏导房间实体：与用户、梦境帖子一对一关联，记录状态与封禁原因。 */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -22,4 +23,10 @@ public class DreamRoom implements Serializable {
     private String bannedReason;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+
+    private String username;
+    private String email;
+    private String dreamTitle;
+    private LocalDateTime dreamCreateTime;
+    private Long messageCount;
 }

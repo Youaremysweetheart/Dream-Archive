@@ -3,9 +3,11 @@ package com.dreamarchive.controller;
 import com.dreamarchive.common.PageResult;
 import com.dreamarchive.common.Result;
 import com.dreamarchive.entity.Dream;
+import com.dreamarchive.entity.DreamRoom;
 import com.dreamarchive.entity.User;
 import com.dreamarchive.mapper.CommentMapper;
 import com.dreamarchive.mapper.DreamMapper;
+import com.dreamarchive.mapper.DreamRoomMapper;
 import com.dreamarchive.mapper.UserMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +31,9 @@ public class AdminController {
     @Autowired
     private CommentMapper commentMapper;
 
+    @Autowired
+    private DreamRoomMapper dreamRoomMapper;
+
     @GetMapping("/stats")
     public Result<Map<String, Object>> getStats(HttpServletRequest request) {
         Result<Void> auth = checkAdmin(request);
@@ -48,6 +53,8 @@ public class AdminController {
             stats.put("privateDreams", dreamMapper.countPrivateDreams());
             stats.put("adminUsers", adminUsers);
             stats.put("normalUsers", totalUsers - adminUsers);
+            stats.put("totalDreamRooms", dreamRoomMapper.countAllRooms());
+            stats.put("bannedDreamRooms", dreamRoomMapper.countBannedRooms());
             stats.put("todayUsers", userMapper.countTodayUsers());
             stats.put("todayDreams", dreamMapper.countTodayDreams());
             stats.put("todayComments", commentMapper.countTodayComments());
@@ -105,6 +112,28 @@ public class AdminController {
         } catch (Exception e) {
             e.printStackTrace();
             return Result.error("获取梦境列表失败: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/dream-rooms")
+    public Result<PageResult<DreamRoom>> getDreamRooms(HttpServletRequest request,
+                                                       @RequestParam(defaultValue = "1") int pageNum,
+                                                       @RequestParam(defaultValue = "20") int pageSize,
+                                                       @RequestParam(required = false) String keyword,
+                                                       @RequestParam(required = false) Integer status) {
+        Result<Void> auth = checkAdmin(request);
+        if (auth != null) {
+            return Result.error(auth.getCode(), auth.getMessage());
+        }
+
+        try {
+            int offset = (pageNum - 1) * pageSize;
+            List<DreamRoom> rooms = dreamRoomMapper.findAdminPage(keyword, status, offset, pageSize);
+            int total = dreamRoomMapper.countAdminPage(keyword, status);
+            return Result.success(new PageResult<>((long) total, pageNum, pageSize, rooms));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("获取心理辅导室列表失败: " + e.getMessage());
         }
     }
 
@@ -246,6 +275,58 @@ public class AdminController {
         } catch (Exception e) {
             e.printStackTrace();
             return Result.error("批量删除失败: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/dream-room/{dreamRoomId}/ban")
+    public Result<DreamRoom> banDreamRoom(@PathVariable String dreamRoomId,
+                                          HttpServletRequest request,
+                                          @RequestBody Map<String, String> params) {
+        Result<Void> auth = checkAdmin(request);
+        if (auth != null) {
+            return Result.error(auth.getCode(), auth.getMessage());
+        }
+
+        try {
+            String reason = params == null ? null : params.get("reason");
+            if (reason == null || reason.trim().isEmpty()) {
+                return Result.error("封禁原因不能为空");
+            }
+
+            DreamRoom room = dreamRoomMapper.findByDreamRoomId(dreamRoomId);
+            if (room == null) {
+                return Result.error("心理辅导室不存在");
+            }
+
+            dreamRoomMapper.banRoom(dreamRoomId, reason.trim());
+            return Result.success("封禁成功", dreamRoomMapper.findByDreamRoomId(dreamRoomId));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("封禁失败: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/dream-room/{dreamRoomId}/unban")
+    public Result<DreamRoom> unbanDreamRoom(@PathVariable String dreamRoomId,
+                                            HttpServletRequest request) {
+        Result<Void> auth = checkAdmin(request);
+        if (auth != null) {
+            return Result.error(auth.getCode(), auth.getMessage());
+        }
+
+        try {
+            DreamRoom room = dreamRoomMapper.findByDreamRoomId(dreamRoomId);
+            if (room == null) {
+                return Result.error("心理辅导室不存在");
+            }
+
+            int nextStatus = room.getOpeningMessageGenerated() != null && room.getOpeningMessageGenerated() == 1 ? 2 : 1;
+            int nextOpeningGenerated = room.getOpeningMessageGenerated() == null ? 0 : room.getOpeningMessageGenerated();
+            dreamRoomMapper.recoverRoom(dreamRoomId, nextStatus, nextOpeningGenerated);
+            return Result.success("解禁成功", dreamRoomMapper.findByDreamRoomId(dreamRoomId));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("解禁失败: " + e.getMessage());
         }
     }
 

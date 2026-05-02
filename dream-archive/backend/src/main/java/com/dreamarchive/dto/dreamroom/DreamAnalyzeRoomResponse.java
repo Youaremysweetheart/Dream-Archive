@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/** 梦境分析完成后返回：帖子 ID、房间 ID、房间状态、是否可展示入口。 */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
