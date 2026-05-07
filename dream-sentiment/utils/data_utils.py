@@ -6,6 +6,7 @@
 """
 
 import json
+import os
 from collections import Counter
 
 import jieba
@@ -113,17 +114,30 @@ class DreamDataset(Dataset):
 
 
 def load_data(train_path, test_path, batch_size=16, max_len=60):
-    """加载训练和测试数据"""
+    """加载训练和测试数据（含增强数据）"""
     all_texts = []
     for path in [train_path, test_path]:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
             all_texts.extend([item["text"] for item in data])
 
+    # 加载增强数据（如果存在）
+    extra_path = train_path.replace(".json", "_extra.json")
+    if os.path.exists(extra_path):
+        with open(extra_path, "r", encoding="utf-8") as f:
+            extra_data = json.load(f)
+            all_texts.extend([item["text"] for item in extra_data])
+
     vocab = Vocabulary()
     vocab.build(all_texts)
 
     train_dataset = DreamDataset(train_path, vocab, max_len)
+    # 如果有增强数据，也加入训练
+    if os.path.exists(extra_path):
+        extra_dataset = DreamDataset(extra_path, vocab, max_len)
+        from torch.utils.data import ConcatDataset
+        train_dataset = ConcatDataset([train_dataset, extra_dataset])
+
     test_dataset = DreamDataset(test_path, vocab, max_len)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
